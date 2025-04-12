@@ -2,10 +2,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
+import { Auth0ProviderWithNavigate } from './components/Auth0Provider';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Layout Components
 import Layout from './components/Layout';
-import PrivateRoute from './components/PrivateRoute';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -25,71 +26,29 @@ function App() {
   return (
     <Provider store={store}>
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Layout />}>
-            <Route index element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            } />
-            <Route path="get-started" element={
-              <PrivateRoute>
-                <GetStarted />
-              </PrivateRoute>
-            } />
-            <Route path="dashboard" element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            } />
-            <Route path="assets" element={
-              <PrivateRoute>
-                <Assets />
-              </PrivateRoute>
-            } />
-            <Route path="liabilities" element={
-              <PrivateRoute>
-                <Liabilities />
-              </PrivateRoute>
-            } />
-            <Route path="beneficiaries" element={
-              <PrivateRoute>
-                <Beneficiaries />
-              </PrivateRoute>
-            } />
-            <Route path="profile" element={
-              <PrivateRoute>
-                <Profile />
-              </PrivateRoute>
-            } />
-            <Route path="documents" element={
-              <PrivateRoute>
-                <Documents />
-              </PrivateRoute>
-            } />
-            <Route path="will/create" element={
-              <PrivateRoute>
-                <WillCreator />
-              </PrivateRoute>
-            } />
-            <Route path="trust/create" element={
-              <PrivateRoute>
-                <TrustCreator />
-              </PrivateRoute>
-            } />
-            <Route path="poa/create" element={
-              <PrivateRoute>
-                <PowerOfAttorney />
-              </PrivateRoute>
-            } />
-            <Route path="living-will/create" element={
-              <PrivateRoute>
-                <LivingWill />
-              </PrivateRoute>
-            } />
-          </Route>
-        </Routes>
+        <Auth0ProviderWithNavigate>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="get-started" element={<GetStarted />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="assets" element={<Assets />} />
+              <Route path="liabilities" element={<Liabilities />} />
+              <Route path="beneficiaries" element={<Beneficiaries />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="documents" element={<Documents />} />
+              <Route path="will/create" element={<WillCreator />} />
+              <Route path="trust/create" element={<TrustCreator />} />
+              <Route path="poa/create" element={<PowerOfAttorney />} />
+              <Route path="living-will/create" element={<LivingWill />} />
+            </Route>
+          </Routes>
+        </Auth0ProviderWithNavigate>
       </Router>
     </Provider>
   );

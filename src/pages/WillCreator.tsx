@@ -123,16 +123,14 @@ const WillCreator: React.FC = () => {
   };
 
   const handleAIAutofill = () => {
-    // This would integrate with an AI service to pre-fill the form
     setIsAIAssisted(true);
-    // Simulate AI autofill with profile data
-    if (profile) {
+    if (profile?.firstName && profile?.lastName && profile?.address?.street && profile?.address?.city && profile?.address?.state && profile?.address?.zipCode) {
       setWillFormData(prevData => ({
         ...prevData,
         personalInfo: {
           ...prevData.personalInfo,
           fullName: `${profile.firstName} ${profile.lastName}`,
-          address: `${profile.address?.street}, ${profile.address?.city}, ${profile.address?.state} ${profile.address?.zipCode}`,
+          address: `${profile?.address?.street}, ${profile?.address?.city}, ${profile?.address?.state} ${profile?.address?.zipCode}`,
           maritalStatus: profile.maritalStatus || ''
         }
       }));
@@ -180,19 +178,19 @@ const WillCreator: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 bg-[#1A1B1E] p-4 rounded-lg">
               <div>
                 <p className="text-[#989AA1]">Name</p>
-                <p className="text-white">{profile?.firstName} {profile?.lastName}</p>
+                <p className="text-white">{profile?.firstName || ''} {profile?.lastName || ''}</p>
               </div>
               <div>
                 <p className="text-[#989AA1]">Age</p>
-                <p className="text-white">{profile?.age}</p>
+                <p className="text-white">{profile?.age || ''}</p>
               </div>
               <div>
                 <p className="text-[#989AA1]">Marital Status</p>
-                <p className="text-white">{profile?.maritalStatus}</p>
+                <p className="text-white">{profile?.maritalStatus || ''}</p>
               </div>
               <div>
                 <p className="text-[#989AA1]">State</p>
-                <p className="text-white">{profile?.address?.state}</p>
+                <p className="text-white">{profile?.address?.state || ''}</p>
               </div>
             </div>
             <p className="text-[#989AA1]">Please verify your information above. This will be used in your will.</p>
