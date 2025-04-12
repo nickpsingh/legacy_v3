@@ -1,13 +1,157 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-background: #0C0D0F;
+    --color-surface: #151619;
+    --color-surface-hover: #1C1E22;
+    --color-surface-active: #26282C;
+    --color-border: #26282C;
+    --color-text: #FFFFFF;
+    --color-text-secondary: #989AA1;
+    --color-primary: #5E6AD2;
+    --color-primary-hover: #6E7AE7;
+    --color-primary-active: #4D5ABD;
+  }
+
+  body {
+    @apply bg-[#0C0D0F] text-white font-['Inter'] antialiased;
+  }
+
+  /* Linear-style focus ring */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-[#5E6AD2] ring-offset-2 ring-offset-[#000000];
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-[#5E6AD2] text-white rounded-md hover:bg-[#6E7AE7] active:bg-[#4D5ABD] focus:outline-none transition-colors duration-200;
+  }
+  
+  .input-field {
+    @apply block w-full rounded-md border border-[#26282C] bg-[#151619] text-white placeholder-[#989AA1]
+           focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2] transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-[#151619] border border-[#26282C] rounded-lg p-6;
+  }
+
+  .menu-item {
+    @apply flex items-center px-2 py-1.5 text-sm font-medium rounded-md transition-colors
+           text-[#989AA1] hover:bg-[#101113] hover:text-white;
+  }
+
+  .menu-item-active {
+    @apply bg-[#101113] text-white;
+  }
+
+  .tutorial-step {
+    @apply bg-[#151619] p-6 rounded-lg border border-[#26282C] transition-all duration-200;
+  }
+
+  .tutorial-step:hover {
+    @apply border-[#5E6AD2] bg-[#1C1E22];
+  }
+
+  .tutorial-button {
+    @apply text-[#5E6AD2] hover:text-[#6E7AE7] font-medium px-4 py-2 rounded-md 
+           hover:bg-[#1C1E22] transition-colors duration-200;
+  }
+
+  /* Linear-style headings */
+  .h1 {
+    @apply text-2xl font-semibold tracking-tight text-white;
+  }
+
+  .h2 {
+    @apply text-xl font-semibold tracking-tight text-white;
+  }
+
+  .h3 {
+    @apply text-lg font-medium tracking-tight text-white;
+  }
+
+  /* Linear-style text */
+  .text-secondary {
+    @apply text-[#989AA1];
+  }
+
+  /* Linear-style dividers */
+  .divider {
+    @apply border-t border-[#26282C];
+  }
+
+  /* Linear-style links */
+  .link {
+    @apply text-[#5E6AD2] hover:text-[#6E7AE7] transition-colors duration-200;
+  }
+
+  /* Linear-style badges */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+           bg-[#1C1E22] text-[#989AA1] border border-[#26282C];
+  }
+
+  /* Linear-style select */
+  .select {
+    @apply bg-[#151619] border border-[#26282C] rounded-md text-white
+           focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2];
+  }
+
+  /* Linear-style tabs */
+  .tab {
+    @apply px-3 h-10 flex items-center text-sm font-medium border-b-2 transition-colors duration-150;
+  }
+
+  .tab-active {
+    @apply border-white text-white;
+  }
+
+  .tab-inactive {
+    @apply border-transparent text-[#989AA1] hover:text-white;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #151619;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #26282C;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #323438;
+}
+
+/* Linear-style search input */
+.search-input {
+  @apply w-full h-8 pl-8 pr-3 bg-[#101113] border border-[#1D1F23] rounded-md text-sm text-white
+         placeholder-[#989AA1] focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2] transition-colors duration-150;
+}
+
+.search-icon {
+  @apply absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#989AA1];
+}
+
+/* Linear-style dropdown */
+.dropdown {
+  @apply absolute z-50 mt-1 w-48 rounded-md bg-[#101113] border border-[#1D1F23] shadow-lg;
+}
+
+.dropdown-item {
+  @apply block w-full px-3 py-1.5 text-sm text-[#989AA1] hover:bg-[#1A1B1E] hover:text-white transition-colors duration-150;
 }
