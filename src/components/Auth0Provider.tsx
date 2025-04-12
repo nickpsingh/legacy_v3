@@ -1,12 +1,16 @@
 import { Auth0Provider } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
+import React from 'react';
 
 export const Auth0ProviderWithNavigate = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
+  const domain = process.env.REACT_APP_AUTH0_DOMAIN || '';
+  const clientId = process.env.REACT_APP_AUTH0_CLIENT_ID || '';
+  const audience = process.env.REACT_APP_AUTH0_AUDIENCE;
 
-  const domain = process.env.REACT_APP_AUTH0_DOMAIN;
-  const clientId = process.env.REACT_APP_AUTH0_CLIENT_ID;
-  const redirectUri = process.env.REACT_APP_AUTH0_CALLBACK_URL || window.location.origin;
+  const redirectUri = typeof window !== 'undefined' 
+    ? window.location.origin 
+    : process.env.REACT_APP_AUTH0_CALLBACK_URL;
 
   if (!domain || !clientId) {
     return (
@@ -34,11 +38,11 @@ export const Auth0ProviderWithNavigate = ({ children }: { children: React.ReactN
       clientId={clientId}
       authorizationParams={{
         redirect_uri: redirectUri,
-        scope: 'openid profile email',
+        audience: audience,
       }}
       onRedirectCallback={onRedirectCallback}
-      cacheLocation="localstorage"
       useRefreshTokens={true}
+      cacheLocation="localstorage"
     >
       {children}
     </Auth0Provider>
