@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
+import { Asset } from '../store/userSlice';
 
 const Assets: React.FC = () => {
   const { profile } = useSelector((state: RootState) => state.user);
@@ -8,24 +9,24 @@ const Assets: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">My Assets</h1>
-        <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold text-white">Assets</h1>
+        <button className="bg-[#1D1F23] text-white px-4 py-2 rounded-lg hover:bg-[#2D2F33] transition-colors">
           Add Asset
         </button>
       </div>
 
       <div className="grid gap-4">
-        {assets.map((asset, index) => (
+        {assets.map((asset: Asset, index: number) => (
           <div key={index} className="bg-[#101113] p-4 rounded-lg border border-[#1D1F23]">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-lg font-medium text-white">{asset.type}</h3>
-                <p className="text-[#989AA1] mt-1">{asset.description}</p>
+                <h3 className="text-lg font-medium text-white">{asset.name}</h3>
+                <p className="text-[#989AA1] text-sm">{asset.description}</p>
               </div>
               <div className="text-right">
-                <div className="text-white font-medium">${asset.value.toLocaleString()}</div>
-                <div className="text-sm text-[#989AA1]">Last updated: {new Date(asset.lastUpdated).toLocaleDateString()}</div>
+                <p className="text-white font-medium">${asset.value.toLocaleString()}</p>
+                <p className="text-[#989AA1] text-sm">Last updated: {new Date(asset.lastUpdated).toLocaleDateString()}</p>
               </div>
             </div>
           </div>

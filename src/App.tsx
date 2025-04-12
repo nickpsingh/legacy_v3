@@ -21,6 +21,7 @@ import Assets from './pages/Assets';
 import Liabilities from './pages/Liabilities';
 import Beneficiaries from './pages/Beneficiaries';
 import Profile from './pages/Profile';
+import Notifications from './pages/Notifications';
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
               <Route path="liabilities" element={<Liabilities />} />
               <Route path="beneficiaries" element={<Beneficiaries />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="notifications" element={<Notifications />} />
               <Route path="documents" element={<Documents />} />
               <Route path="will/create" element={<WillCreator />} />
               <Route path="trust/create" element={<TrustCreator />} />

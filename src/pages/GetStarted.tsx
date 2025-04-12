@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { updateProfile } from '../store/userSlice';
-import { UserProfile } from '../store/userSlice';
+import { updateProfile, UserProfile, Asset, Liability } from '../store/userSlice';
 
 interface Step {
   id: string;
@@ -11,12 +10,29 @@ interface Step {
 }
 
 // Extend UserProfile to ensure compatibility
-interface FormData extends UserProfile {
+interface FormData {
   firstName: string;
   lastName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  maritalStatus: 'single' | 'married' | 'divorced' | 'widowed';
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+  assets: Asset[];
+  liabilities: Liability[];
   selectedServices: string[];
   selectedAssetTypes: string[];
   connectPlaid: boolean;
+  financialInfo: {
+    totalValue: number;
+    lastUpdated: string;
+  };
 }
 
 const steps: Step[] = [
@@ -74,86 +90,127 @@ const assetTypes = [
 ];
 
 const GetStarted: React.FC = () => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({
-    name: '',
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     dateOfBirth: '',
+    maritalStatus: 'single',
     address: {
       street: '',
       city: '',
       state: '',
       zipCode: '',
-      country: 'United States',
+      country: ''
     },
-    state: '',
-    maritalStatus: 'single',
-    financialInfo: {
-      assets: [],
-      liabilities: [],
-      totalValue: 0,
-      totalAssets: 0,
-      totalLiabilities: 0,
-      lastUpdated: new Date().toISOString()
-    },
+    assets: [],
+    liabilities: [],
     selectedServices: [],
     selectedAssetTypes: [],
-    connectPlaid: false
+    connectPlaid: false,
+    financialInfo: {
+      totalValue: 0,
+      lastUpdated: new Date().toISOString()
+    }
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name.startsWith('address.')) {
-      const addressField = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        address: {
-          ...prev.address!,
-          [addressField]: value,
-        },
-      }));
+    if (name.includes('.')) {
+      const [section, field] = name.split('.');
+      if (section === 'address') {
+        setFormData(prev => ({
+          ...prev,
+          address: {
+            ...prev.address,
+            [field]: value
+          }
+        }));
+      } else if (section === 'financialInfo') {
+        setFormData(prev => ({
+          ...prev,
+          financialInfo: {
+            ...prev.financialInfo,
+            [field]: value
+          }
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
-        [name]: value,
+        [name]: value
       }));
     }
   };
 
-  const handleServiceToggle = (serviceId: string) => {
+  const handleServiceSelection = (service: string) => {
     setFormData(prev => ({
       ...prev,
-      selectedServices: prev.selectedServices.includes(serviceId)
-        ? prev.selectedServices.filter(id => id !== serviceId)
-        : [...prev.selectedServices, serviceId]
+      selectedServices: prev.selectedServices.includes(service)
+        ? prev.selectedServices.filter(s => s !== service)
+        : [...prev.selectedServices, service]
     }));
   };
 
-  const handleAssetTypeToggle = (assetType: string) => {
+  const handleAssetTypeSelection = (id: string) => {
     setFormData(prev => ({
       ...prev,
-      selectedAssetTypes: prev.selectedAssetTypes.includes(assetType)
-        ? prev.selectedAssetTypes.filter(type => type !== assetType)
-        : [...prev.selectedAssetTypes, assetType]
+      selectedAssetTypes: prev.selectedAssetTypes.includes(id)
+        ? prev.selectedAssetTypes.filter(type => type !== id)
+        : [...prev.selectedAssetTypes, id]
     }));
+  };
+
+  const handlePlaidToggle = () => {
+    setFormData(prev => ({
+      ...prev,
+      connectPlaid: !prev.connectPlaid
+    }));
+  };
+
+  const handleSubmit = () => {
+    const { selectedServices, selectedAssetTypes, connectPlaid, financialInfo, ...profileFields } = formData;
+    const profileData: UserProfile = {
+      ...profileFields,
+      age: calculateAge(formData.dateOfBirth),
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      maritalStatus: formData.maritalStatus,
+      address: formData.address,
+      financialInfo: {
+        assets: [],
+        liabilities: [],
+        totalValue: 0,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+    dispatch(updateProfile(profileData));
+    navigate('/dashboard');
+  };
+
+  const calculateAge = (dateOfBirth: string): number => {
+    if (!dateOfBirth) return 0;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      // Combine firstName and lastName into name before dispatching
-      const profileData: UserProfile = {
-        ...formData,
-        name: `${formData.firstName} ${formData.lastName}`
-      };
-      dispatch(updateProfile(profileData));
-      navigate('/dashboard');
+      handleSubmit();
     }
   };
 
@@ -182,7 +239,7 @@ const GetStarted: React.FC = () => {
               {services.map(service => (
                 <button
                   key={service.id}
-                  onClick={() => handleServiceToggle(service.id)}
+                  onClick={() => handleServiceSelection(service.id)}
                   className={`p-4 rounded-lg border transition-colors text-left ${
                     formData.selectedServices.includes(service.id)
                       ? 'border-blue-500 bg-blue-500 bg-opacity-10'
@@ -356,7 +413,7 @@ const GetStarted: React.FC = () => {
               {assetTypes.map(asset => (
                 <button
                   key={asset.id}
-                  onClick={() => handleAssetTypeToggle(asset.id)}
+                  onClick={() => handleAssetTypeSelection(asset.id)}
                   className={`p-4 rounded-lg border transition-colors text-center ${
                     formData.selectedAssetTypes.includes(asset.id)
                       ? 'border-blue-500 bg-blue-500 bg-opacity-10'
@@ -383,7 +440,7 @@ const GetStarted: React.FC = () => {
                     We use Plaid to ensure your information remains safe and private.
                   </p>
                   <button
-                    onClick={() => setFormData(prev => ({ ...prev, connectPlaid: !prev.connectPlaid }))}
+                    onClick={handlePlaidToggle}
                     className={`mt-4 px-4 py-2 rounded transition-colors ${
                       formData.connectPlaid
                         ? 'bg-blue-500 text-white'

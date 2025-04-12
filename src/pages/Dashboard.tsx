@@ -1,177 +1,172 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store/store';
+import { useSelector, useDispatch } from 'react-redux';
+import { useAuth0 } from '@auth0/auth0-react';
+import { RootState } from '../app/store';
 import { Link } from 'react-router-dom';
+import { Asset, Liability, UserProfile, Beneficiary, addDummyFinancialData } from '../features/user/userSlice';
+import { FaChartLine, FaFileAlt, FaUsers, FaArrowRight } from 'react-icons/fa';
 
-interface NotificationWidget {
+interface Notification {
   id: string;
   title: string;
   message: string;
-  timestamp: string;
-  type: 'info' | 'warning' | 'success';
+  date: string;
+  read: boolean;
 }
 
 const Dashboard: React.FC = () => {
-  const { profile } = useSelector((state: RootState) => state.user);
+  const dispatch = useDispatch();
+  const profile = useSelector((state: RootState) => state.user.profile) as UserProfile | null;
+  const { user, isAuthenticated, isLoading } = useAuth0();
 
-  // Mock notifications - replace with real data later
-  const notifications: NotificationWidget[] = [
-    {
-      id: '1',
-      title: 'Will Update Required',
-      message: 'Your will needs to be reviewed and updated.',
-      timestamp: new Date().toISOString(),
-      type: 'warning'
-    },
-    {
-      id: '2',
-      title: 'New Asset Added',
-      message: 'Successfully added your investment portfolio.',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      type: 'success'
-    }
-  ];
-
-  const getNotificationColor = (type: string) => {
-    switch (type) {
-      case 'warning': return 'text-yellow-500 bg-yellow-500/10';
-      case 'success': return 'text-green-500 bg-green-500/10';
-      default: return 'text-blue-500 bg-blue-500/10';
-    }
-  };
-
-  if (!profile) {
+  if (isLoading) {
     return (
-      <div className="text-center py-8 text-[#989AA1]">
-        <p>Please log in to view your dashboard.</p>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6 p-6">
-      {/* Welcome Section */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-white">
-          Welcome back, Nick
-        </h1>
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-[#989AA1] mb-4">Please log in to view your dashboard.</p>
+        <Link 
+          to="/login"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Go to Login
+        </Link>
       </div>
+    );
+  }
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Financial Widgets */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Net Worth Widget */}
-          <div className="bg-[#101113] rounded-lg border border-[#1D1F23] p-6">
-            <h2 className="text-lg font-medium text-white mb-4">Net Worth Overview</h2>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-[#989AA1]">Total Assets</p>
-                <p className="text-xl font-semibold text-white">
-                  ${profile.financialInfo?.totalAssets?.toLocaleString() || '0'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-[#989AA1]">Total Liabilities</p>
-                <p className="text-xl font-semibold text-white">
-                  ${profile.financialInfo?.totalLiabilities?.toLocaleString() || '0'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-[#989AA1]">Net Worth</p>
-                <p className="text-xl font-semibold text-white">
-                  ${((profile.financialInfo?.totalAssets || 0) - (profile.financialInfo?.totalLiabilities || 0)).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#000000]">
+        <p className="text-white">Please complete your profile to view the dashboard.</p>
+      </div>
+    );
+  }
 
-          {/* Assets Widget */}
-          <div className="bg-[#101113] rounded-lg border border-[#1D1F23] p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-white">My Assets</h2>
-              <Link to="/assets" className="text-sm text-blue-500 hover:text-blue-400">View All →</Link>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {profile.financialInfo?.assets?.map((asset, index) => (
-                <div key={index} className="p-4 bg-[#1A1B1E] rounded-lg">
-                  <p className="text-sm text-[#989AA1]">{asset.type}</p>
-                  <p className="text-lg font-medium text-white">${asset.value.toLocaleString()}</p>
-                  <p className="text-xs text-[#989AA1] mt-1">{asset.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+  const calculateAssetTotal = (assets: Asset[]): number => {
+    return assets.reduce((sum, asset) => sum + asset.value, 0);
+  };
 
-          {/* Liabilities Widget */}
-          <div className="bg-[#101113] rounded-lg border border-[#1D1F23] p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-white">My Liabilities</h2>
-              <Link to="/liabilities" className="text-sm text-blue-500 hover:text-blue-400">View All →</Link>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {profile.financialInfo?.liabilities?.map((liability, index) => (
-                <div key={index} className="p-4 bg-[#1A1B1E] rounded-lg">
-                  <p className="text-sm text-[#989AA1]">{liability.type}</p>
-                  <p className="text-lg font-medium text-white">${liability.amount.toLocaleString()}</p>
-                  <p className="text-xs text-[#989AA1] mt-1">{liability.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+  const calculateLiabilityTotal = (liabilities: Liability[]): number => {
+    return liabilities.reduce((sum, liability) => sum + liability.amount, 0);
+  };
+
+  const totalAssets = calculateAssetTotal(profile.financialInfo.assets ?? []);
+  const totalLiabilities = calculateLiabilityTotal(profile.financialInfo.liabilities ?? []);
+  const netWorth = totalAssets - totalLiabilities;
+
+  return (
+    <div className="min-h-screen bg-[#000000] text-white p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Welcome back, {profile.firstName}</h1>
+          <button
+            onClick={() => dispatch(addDummyFinancialData())}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Load Sample Data
+          </button>
         </div>
-
-        {/* Right Column - Notifications and Quick Actions */}
-        <div className="space-y-6">
-          {/* Notifications Widget */}
-          <div className="bg-[#101113] rounded-lg border border-[#1D1F23] p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-white">Notifications</h2>
-              <Link to="/notifications" className="text-sm text-blue-500 hover:text-blue-400">View All →</Link>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Net Worth Widget */}
+          <div className="bg-gradient-to-br from-[#1A1B1E] to-[#1D1F23] rounded-xl p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <FaChartLine className="text-blue-500" />
+                Net Worth
+              </h2>
+              <span className="text-2xl font-bold text-blue-500">${netWorth.toLocaleString()}</span>
             </div>
+            
             <div className="space-y-4">
-              {notifications.map((notification) => (
-                <div key={notification.id} className="p-4 bg-[#1A1B1E] rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-2 py-1 text-xs rounded-full ${getNotificationColor(notification.type)}`}>
-                      {notification.type}
-                    </span>
-                    <span className="text-xs text-[#989AA1]">
-                      {new Date(notification.timestamp).toLocaleDateString()}
-                    </span>
+              <Link to="/assets" className="block">
+                <div className="flex items-center justify-between p-4 bg-[#1D1F23]/50 rounded-lg hover:bg-[#1D1F23] transition-colors">
+                  <div>
+                    <p className="text-[#989AA1]">Total Assets</p>
+                    <p className="text-lg font-medium text-green-500">${totalAssets.toLocaleString()}</p>
                   </div>
-                  <h3 className="text-sm font-medium text-white">{notification.title}</h3>
-                  <p className="text-sm text-[#989AA1] mt-1">{notification.message}</p>
+                  <FaArrowRight className="text-[#989AA1]" />
                 </div>
-              ))}
+              </Link>
+              
+              <Link to="/liabilities" className="block">
+                <div className="flex items-center justify-between p-4 bg-[#1D1F23]/50 rounded-lg hover:bg-[#1D1F23] transition-colors">
+                  <div>
+                    <p className="text-[#989AA1]">Total Liabilities</p>
+                    <p className="text-lg font-medium text-red-500">${totalLiabilities.toLocaleString()}</p>
+                  </div>
+                  <FaArrowRight className="text-[#989AA1]" />
+                </div>
+              </Link>
             </div>
           </div>
 
-          {/* Quick Actions Widget */}
-          <div className="bg-[#101113] rounded-lg border border-[#1D1F23] p-6">
-            <h2 className="text-lg font-medium text-white mb-4">Quick Actions</h2>
+          {/* Documents Widget */}
+          <div className="bg-gradient-to-br from-[#1A1B1E] to-[#1D1F23] rounded-xl p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <FaFileAlt className="text-blue-500" />
+                My Documents
+              </h2>
+              <Link to="/documents" className="text-blue-500 hover:text-blue-400 transition-colors">
+                Manage
+              </Link>
+            </div>
+            
             <div className="space-y-3">
-              <Link 
-                to="/will/create" 
-                className="block p-3 bg-[#1A1B1E] rounded-lg hover:bg-[#2A2B2E] transition-colors"
-              >
-                <p className="text-white font-medium">Create Will</p>
-                <p className="text-sm text-[#989AA1]">Start your estate planning</p>
+              <Link to="/will-creator" className="block p-3 bg-[#1D1F23]/50 rounded-lg hover:bg-[#1D1F23] transition-colors">
+                <p className="font-medium">Last Will and Testament</p>
+                <p className="text-sm text-[#989AA1]">Draft in progress</p>
               </Link>
-              <Link 
-                to="/trust/create" 
-                className="block p-3 bg-[#1A1B1E] rounded-lg hover:bg-[#2A2B2E] transition-colors"
-              >
-                <p className="text-white font-medium">Create Trust</p>
-                <p className="text-sm text-[#989AA1]">Set up a living trust</p>
+              <Link to="/living-will" className="block p-3 bg-[#1D1F23]/50 rounded-lg hover:bg-[#1D1F23] transition-colors">
+                <p className="font-medium">Living Will</p>
+                <p className="text-sm text-[#989AA1]">Not started</p>
               </Link>
-              <Link 
-                to="/beneficiaries" 
-                className="block p-3 bg-[#1A1B1E] rounded-lg hover:bg-[#2A2B2E] transition-colors"
-              >
-                <p className="text-white font-medium">Manage Beneficiaries</p>
-                <p className="text-sm text-[#989AA1]">Update your beneficiaries</p>
+              <Link to="/power-of-attorney" className="block p-3 bg-[#1D1F23]/50 rounded-lg hover:bg-[#1D1F23] transition-colors">
+                <p className="font-medium">Power of Attorney</p>
+                <p className="text-sm text-[#989AA1]">Not started</p>
               </Link>
+            </div>
+          </div>
+
+          {/* Beneficiaries Widget */}
+          <div className="bg-gradient-to-br from-[#1A1B1E] to-[#1D1F23] rounded-xl p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <FaUsers className="text-blue-500" />
+                My Beneficiaries
+              </h2>
+              <Link to="/beneficiaries" className="text-blue-500 hover:text-blue-400 transition-colors">
+                Manage
+              </Link>
+            </div>
+            
+            <div className="space-y-3">
+              {profile?.beneficiaries?.length ? (
+                profile.beneficiaries.slice(0, 3).map((beneficiary: Beneficiary, index: number) => (
+                  <div key={index} className="p-3 bg-[#1D1F23]/50 rounded-lg">
+                    <p className="font-medium">{`${beneficiary.firstName} ${beneficiary.lastName}`}</p>
+                    <p className="text-sm text-[#989AA1]">{beneficiary.relationship}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-[#989AA1] mb-4">No beneficiaries added yet</p>
+                  <Link 
+                    to="/beneficiaries"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Add Beneficiaries
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -17,12 +17,14 @@ interface MedicalPreference {
   preference: 'yes' | 'no' | 'undecided';
 }
 
+type OrganDonationPreference = 'yes' | 'no' | 'specific';
+
 const LivingWill: React.FC = () => {
   const { profile } = useSelector((state: RootState) => state.user);
   const [agents, setAgents] = useState<HealthcareAgent[]>([]);
   const [stateLaws, setStateLaws] = useState<string[]>([]);
   const [showLaws, setShowLaws] = useState(false);
-  const [organDonation, setOrganDonation] = useState<'yes' | 'no' | 'specific'>('no');
+  const [organDonation, setOrganDonation] = useState<OrganDonationPreference>('no');
   const [specificOrgans, setSpecificOrgans] = useState<string>('');
 
   const [preferences, setPreferences] = useState<MedicalPreference[]>([
@@ -75,14 +77,17 @@ const LivingWill: React.FC = () => {
   };
 
   const handleViewStateLaws = async () => {
-    if (profile?.state) {
-      try {
-        const laws = await getStateLaws(profile.state, 'living-will');
-        setStateLaws(laws);
-        setShowLaws(true);
-      } catch (error) {
-        console.error('Error fetching state laws:', error);
-      }
+    if (!profile || !profile.address?.state) {
+      console.warn('Profile or state information is missing');
+      return;
+    }
+
+    try {
+      const laws = await getStateLaws(profile.address.state, 'living-will');
+      setStateLaws(laws);
+      setShowLaws(true);
+    } catch (error) {
+      console.error('Error fetching state laws:', error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
@@ -235,7 +240,7 @@ const LivingWill: React.FC = () => {
               onClick={handleViewStateLaws}
               className="text-primary-600 hover:text-primary-700"
             >
-              View {profile?.state} Living Will Laws
+              View {profile?.address?.state} Living Will Laws
             </button>
             {showLaws && (
               <div className="mt-4 p-4 bg-gray-50 rounded-md">

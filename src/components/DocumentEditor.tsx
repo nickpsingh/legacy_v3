@@ -3,31 +3,72 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
 import { addDocument, updateDocument } from '../features/documents/documentsSlice';
 import { generateDocument, getSuggestions } from '../services/ai.service';
+import { Asset, Liability, UserProfile } from '../features/user/userSlice';
+
+type DocumentType = 'will' | 'trust' | 'living-will' | 'power-of-attorney';
+
+interface UserProfileData {
+  name: string;
+  state: string;
+  assets: Asset[];
+  liabilities: Liability[];
+}
+
+interface DocumentData {
+  userProfile: UserProfileData;
+  content: string;
+  type: DocumentType;
+}
 
 interface DocumentEditorProps {
-  type: 'will' | 'trust' | 'power-of-attorney' | 'living-will';
+  type: DocumentType;
   existingDocument?: {
     id: string;
-    content: string;
     title: string;
+    type: DocumentType;
+    content: string;
     createdAt: string;
+    updatedAt: string;
   };
 }
 
 const DocumentEditor: React.FC<DocumentEditorProps> = ({ type, existingDocument }) => {
   const dispatch = useDispatch();
   const { profile } = useSelector((state: RootState) => state.user);
-  const [content, setContent] = useState(existingDocument?.content || '');
+  const [documentData, setDocumentData] = useState<DocumentData>({
+    userProfile: {
+      name: '',
+      state: '',
+      assets: [],
+      liabilities: []
+    },
+    content: existingDocument?.content || '',
+    type: type
+  });
   const [title, setTitle] = useState(existingDocument?.title || '');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (content && profile) {
+    if (profile) {
+      setDocumentData({
+        ...documentData,
+        userProfile: {
+          name: profile.name,
+          state: profile.address.state,
+          assets: profile.financialInfo?.assets ?? [],
+          liabilities: profile.financialInfo?.liabilities ?? []
+        }
+      });
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (documentData.content && profile) {
       const fetchSuggestions = async () => {
         try {
-          const newSuggestions = await getSuggestions(type, profile, content);
+          const newSuggestions = await getSuggestions(documentData.type, profile, documentData.content);
           setSuggestions(newSuggestions);
         } catch (err) {
           console.error('Error fetching suggestions:', err);
@@ -37,7 +78,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ type, existingDocument 
       const debounce = setTimeout(fetchSuggestions, 1000);
       return () => clearTimeout(debounce);
     }
-  }, [content, profile, type]);
+  }, [documentData.content, profile, documentData.type]);
 
   const handleGenerate = async () => {
     if (!profile) {
@@ -49,18 +90,15 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ type, existingDocument 
     setError(null);
 
     try {
-      const response = await generateDocument({
-        type,
-        userProfile: {
-          name: profile.name,
-          state: profile.state,
-          assets: profile.financialInfo.assets,
-          liabilities: profile.financialInfo.liabilities
-        }
-      });
+      const response = await generateDocument(documentData);
 
-      setContent(response.content);
-      setSuggestions(response.suggestions);
+      setDocumentData({
+        ...documentData,
+        content: response.content
+      });
+      if (response.suggestions) {
+        setSuggestions(response.suggestions);
+      }
     } catch (err) {
       setError('Failed to generate document. Please try again.');
     } finally {
@@ -77,8 +115,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ type, existingDocument 
     const document = {
       id: existingDocument?.id || Date.now().toString(),
       title,
-      type,
-      content,
+      type: documentData.type,
+      content: documentData.content,
       createdAt: existingDocument?.id ? existingDocument.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -127,8 +165,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ type, existingDocument 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2">
           <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
+            value={documentData.content}
+            onChange={(e) => setDocumentData({ ...documentData, content: e.target.value })}
             className="input-field h-[600px] font-mono"
             placeholder="Start typing or generate content with AI..."
           />
@@ -139,7 +177,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ type, existingDocument 
             <div
               key={index}
               className="p-4 bg-primary-50 rounded-md cursor-pointer hover:bg-primary-100"
-              onClick={() => setContent(content + '\n' + suggestion)}
+              onClick={() => setDocumentData({ ...documentData, content: documentData.content + '\n' + suggestion })}
             >
               <p className="text-sm text-gray-700">{suggestion}</p>
             </div>
