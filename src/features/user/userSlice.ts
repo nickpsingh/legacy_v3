@@ -5,6 +5,7 @@ export interface Asset {
   name: string;
   type: 'real_estate' | 'investment' | 'bank_account' | 'vehicle' | 'other';
   value: number;
+  amount: number;
   description: string;
   lastUpdated: string;
 }
@@ -28,15 +29,16 @@ export interface Address {
 }
 
 export interface FinancialInfo {
+  income?: number;
   assets: Asset[];
   liabilities: Liability[];
   netWorth?: number;
   plaidConnected?: boolean;
-  totalValue: number;
+  totalValue?: number;
   lastUpdated: string;
 }
 
-export interface Beneficiary {
+export interface BaseBeneficiary {
   id: string;
   firstName: string;
   lastName: string;
@@ -47,9 +49,24 @@ export interface Beneficiary {
     email?: string;
     phone?: string;
   };
+  lastUpdated?: string;
 }
 
+export interface WillBeneficiary extends BaseBeneficiary {
+  type: 'will';
+  allocation: number;
+}
+
+export interface TrustBeneficiary extends BaseBeneficiary {
+  type: 'trust';
+  distribution: string;
+  conditions: string;
+}
+
+export type Beneficiary = WillBeneficiary | TrustBeneficiary;
+
 export interface UserProfile {
+  uid: string;
   firstName: string;
   lastName: string;
   name: string;
@@ -62,6 +79,7 @@ export interface UserProfile {
   state: string;
   financialInfo: FinancialInfo;
   beneficiaries: Beneficiary[];
+  lastUpdated?: string;
 }
 
 interface UserState {
@@ -76,6 +94,7 @@ const dummyAssets: Asset[] = [
     name: 'Primary Residence',
     type: 'real_estate',
     value: 750000,
+    amount: 750000,
     description: '4 bedroom house in San Francisco',
     lastUpdated: new Date().toISOString()
   },
@@ -84,6 +103,7 @@ const dummyAssets: Asset[] = [
     name: '401(k) Account',
     type: 'investment',
     value: 250000,
+    amount: 250000,
     description: 'Retirement account with Fidelity',
     lastUpdated: new Date().toISOString()
   },
@@ -92,6 +112,7 @@ const dummyAssets: Asset[] = [
     name: 'Checking Account',
     type: 'bank_account',
     value: 25000,
+    amount: 25000,
     description: 'Main checking account with Chase',
     lastUpdated: new Date().toISOString()
   },
@@ -100,6 +121,7 @@ const dummyAssets: Asset[] = [
     name: 'Tesla Model 3',
     type: 'vehicle',
     value: 45000,
+    amount: 45000,
     description: '2022 Tesla Model 3 Long Range',
     lastUpdated: new Date().toISOString()
   }
@@ -138,7 +160,7 @@ const dummyLiabilities: Liability[] = [
 // Load initial state from localStorage
 const loadState = (): UserState => {
   try {
-    const serializedState = localStorage.getItem('userProfile');
+    const serializedState = localStorage.getItem('estateplannerState');
     if (serializedState === null) {
       return {
         profile: null,
@@ -146,13 +168,14 @@ const loadState = (): UserState => {
         error: null
       };
     }
-    const profile = JSON.parse(serializedState);
-    return {
-      profile,
+    const state = JSON.parse(serializedState);
+    return state.user || {
+      profile: null,
       loading: false,
       error: null
     };
   } catch (err) {
+    console.error('Error loading state:', err);
     return {
       profile: null,
       loading: false,
@@ -163,28 +186,34 @@ const loadState = (): UserState => {
 
 const initialState: UserState = {
   profile: {
+    uid: '',
     firstName: '',
     lastName: '',
     name: '',
     email: '',
     phone: '',
     age: 0,
+    dateOfBirth: '',
     maritalStatus: 'single',
     address: {
       street: '',
       city: '',
       state: '',
       zipCode: '',
-      country: '',
+      country: ''
     },
     state: '',
     financialInfo: {
+      income: 0,
       assets: [],
       liabilities: [],
-      lastUpdated: '',
+      netWorth: 0,
+      plaidConnected: false,
       totalValue: 0,
+      lastUpdated: new Date().toISOString()
     },
     beneficiaries: [],
+    lastUpdated: new Date().toISOString()
   },
   loading: false,
   error: null,
@@ -192,117 +221,115 @@ const initialState: UserState = {
 
 const userSlice = createSlice({
   name: 'user',
-  initialState,
+  initialState: loadState(),
   reducers: {
-    updateProfile: (state, action: PayloadAction<UserProfile | null>) => {
-      if (action.payload) {
-        // Merge with existing profile data if it exists
-        if (state.profile) {
-          state.profile = {
-            ...state.profile,
-            ...action.payload,
-            // Preserve nested objects by merging them
-            address: {
-              ...state.profile.address,
-              ...(action.payload.address || {}),
-            },
-            financialInfo: {
-              ...state.profile.financialInfo,
-              ...(action.payload.financialInfo || {}),
-              // Preserve arrays by concatenating and deduplicating
-              assets: [
-                ...(state.profile.financialInfo.assets || []),
-                ...(action.payload.financialInfo?.assets || [])
-              ].filter((asset, index, self) => 
-                index === self.findIndex((a) => a.id === asset.id)
-              ),
-              liabilities: [
-                ...(state.profile.financialInfo.liabilities || []),
-                ...(action.payload.financialInfo?.liabilities || [])
-              ].filter((liability, index, self) => 
-                index === self.findIndex((l) => l.id === liability.id)
-              ),
-            },
-          };
-        } else {
-          state.profile = action.payload;
-        }
-
-        // Ensure required fields
-        if (state.profile) {
-          state.profile.name = `${state.profile.firstName} ${state.profile.lastName}`;
-          state.profile.state = state.profile.address?.state || '';
-          
-          // Ensure financialInfo exists and has required fields
-          if (!state.profile.financialInfo) {
-            state.profile.financialInfo = {
-              assets: [],
-              liabilities: [],
-              netWorth: 0,
-              plaidConnected: false,
-              totalValue: 0,
-              lastUpdated: new Date().toISOString()
-            };
-          }
-
-          // Calculate totalValue and netWorth
-          const totalAssets = state.profile.financialInfo.assets.reduce(
-            (sum, asset) => sum + asset.value,
-            0
-          );
-          const totalLiabilities = state.profile.financialInfo.liabilities.reduce(
-            (sum, liability) => sum + liability.amount,
-            0
-          );
-          
-          state.profile.financialInfo.totalValue = totalAssets;
-          state.profile.financialInfo.netWorth = totalAssets - totalLiabilities;
-          state.profile.financialInfo.lastUpdated = new Date().toISOString();
-
-          // Save to localStorage
-          localStorage.setItem('userProfile', JSON.stringify(state.profile));
-        }
-      } else {
-        // On logout, preserve the data in localStorage but clear the state
-        state.profile = null;
+    updateProfile: (state, action: PayloadAction<UserProfile>) => {
+      state.profile = action.payload;
+    },
+    updateFinancialInfo: (state, action: PayloadAction<Partial<FinancialInfo>>) => {
+      if (state.profile) {
+        state.profile.financialInfo = {
+          ...state.profile.financialInfo,
+          ...action.payload,
+          lastUpdated: new Date().toISOString()
+        };
       }
     },
-    addDummyFinancialData: (state) => {
+    addBeneficiary: (state, action: PayloadAction<Beneficiary>) => {
       if (state.profile) {
-        // Preserve existing assets and liabilities, add dummy ones
-        const existingAssets = state.profile.financialInfo?.assets || [];
-        const existingLiabilities = state.profile.financialInfo?.liabilities || [];
-
-        // Combine existing and dummy data, removing duplicates by ID
-        const combinedAssets = [...existingAssets, ...dummyAssets]
-          .filter((asset, index, self) => 
-            index === self.findIndex((a) => a.id === asset.id)
-          );
-
-        const combinedLiabilities = [...existingLiabilities, ...dummyLiabilities]
-          .filter((liability, index, self) => 
-            index === self.findIndex((l) => l.id === liability.id)
-          );
-
-        // Calculate new totals
-        const totalAssets = combinedAssets.reduce((sum, asset) => sum + asset.value, 0);
-        const totalLiabilities = combinedLiabilities.reduce((sum, liability) => sum + liability.amount, 0);
-
-        const updatedProfile = {
-          ...state.profile,
-          financialInfo: {
-            ...state.profile.financialInfo,
-            assets: combinedAssets,
-            liabilities: combinedLiabilities,
-            netWorth: totalAssets - totalLiabilities,
-            totalValue: totalAssets,
+        state.profile.beneficiaries = [
+          ...state.profile.beneficiaries,
+          {
+            ...action.payload,
+            id: crypto.randomUUID(),
             lastUpdated: new Date().toISOString()
           }
-        };
+        ];
+      }
+    },
+    updateBeneficiary: (state, action: PayloadAction<{ id: string; beneficiary: Partial<Beneficiary> }>) => {
+      if (state.profile) {
+        const index = state.profile.beneficiaries.findIndex(b => b.id === action.payload.id);
+        if (index !== -1) {
+          const existingBeneficiary = state.profile.beneficiaries[index];
+          const updatedBeneficiary = {
+            ...existingBeneficiary,
+            ...action.payload.beneficiary,
+            type: existingBeneficiary.type, // Preserve the original type
+            lastUpdated: new Date().toISOString()
+          };
+          state.profile.beneficiaries[index] = updatedBeneficiary as WillBeneficiary | TrustBeneficiary;
+        }
+      }
+    },
+    addAsset: (state, action: PayloadAction<Asset>) => {
+      if (state.profile?.financialInfo) {
+        state.profile.financialInfo.assets.push(action.payload);
+      }
+    },
+    updateAsset: (state, action: PayloadAction<Asset>) => {
+      if (state.profile?.financialInfo) {
+        const index = state.profile.financialInfo.assets.findIndex(
+          asset => asset.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.profile.financialInfo.assets[index] = action.payload;
+        }
+      }
+    },
+    deleteAsset: (state, action: PayloadAction<string>) => {
+      if (state.profile?.financialInfo) {
+        state.profile.financialInfo.assets = state.profile.financialInfo.assets.filter(
+          asset => asset.id !== action.payload
+        );
+      }
+    },
+    addLiability: (state, action: PayloadAction<Liability>) => {
+      if (state.profile?.financialInfo) {
+        state.profile.financialInfo.liabilities.push(action.payload);
+      }
+    },
+    updateLiability: (state, action: PayloadAction<Liability>) => {
+      if (!state.profile?.financialInfo) return;
 
-        // Update state and persist to localStorage
-        state.profile = updatedProfile;
-        localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+      // Create a new array with the updated liability
+      const updatedLiabilities = state.profile.financialInfo.liabilities.map(liability => 
+        liability.id === action.payload.id 
+          ? { ...action.payload, lastUpdated: new Date().toISOString() }
+          : liability
+      );
+
+      // Calculate totals
+      const totalAssets = state.profile.financialInfo.assets.reduce(
+        (sum, asset) => sum + Number(asset.value),
+        0
+      );
+      
+      const totalLiabilities = updatedLiabilities.reduce(
+        (sum, liability) => sum + Number(liability.amount),
+        0
+      );
+
+      // Update the entire financial info to ensure state changes are detected
+      state.profile.financialInfo = {
+        ...state.profile.financialInfo,
+        liabilities: updatedLiabilities,
+        netWorth: totalAssets - totalLiabilities,
+        lastUpdated: new Date().toISOString()
+      };
+
+      // Force a state update by updating the profile's lastUpdated
+      state.profile.lastUpdated = new Date().toISOString();
+    },
+    deleteLiability: (state, action: PayloadAction<string>) => {
+      if (state.profile) {
+        state.profile.financialInfo.liabilities = state.profile.financialInfo.liabilities.filter(
+          liability => liability.id !== action.payload
+        );
+        // Update net worth after deleting liability
+        const totalAssets = state.profile.financialInfo.assets.reduce((sum, asset) => sum + asset.value, 0);
+        const totalLiabilities = state.profile.financialInfo.liabilities.reduce((sum, liability) => sum + liability.amount, 0);
+        state.profile.financialInfo.netWorth = totalAssets - totalLiabilities;
       }
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
@@ -310,9 +337,23 @@ const userSlice = createSlice({
     },
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
-    },
-  },
+    }
+  }
 });
 
-export const { updateProfile, addDummyFinancialData, setLoading, setError } = userSlice.actions;
+export const {
+  updateProfile,
+  updateFinancialInfo,
+  addBeneficiary,
+  updateBeneficiary,
+  addAsset,
+  updateAsset,
+  deleteAsset,
+  addLiability,
+  updateLiability,
+  deleteLiability,
+  setLoading,
+  setError
+} = userSlice.actions;
+
 export default userSlice.reducer; 

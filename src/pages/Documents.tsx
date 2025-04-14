@@ -1,64 +1,121 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { documentService, DocumentData } from '../services/document.service';
+import ConfirmationModal from '../components/ConfirmationModal';
+import { useSnackbar } from 'notistack';
 
-interface Document {
-  id: number;
-  type: string;
+interface Document extends DocumentData {
+  id: string;
   title: string;
-  status: 'Draft' | 'In Review' | 'Completed' | 'Signed';
-  lastModified: string;
   progress?: number;
 }
 
 const Documents: React.FC = () => {
+  const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
 
-  const documents: Document[] = [
-    {
-      id: 1,
-      type: 'Will',
-      title: 'Last Will and Testament',
-      status: 'Draft',
-      lastModified: '2024-03-20',
-      progress: 60
-    },
-    {
-      id: 2,
-      type: 'Trust',
-      title: 'Living Trust',
-      status: 'In Review',
-      lastModified: '2024-03-19',
-      progress: 90
-    },
-    {
-      id: 3,
-      type: 'Power of Attorney',
-      title: 'Durable Power of Attorney',
-      status: 'Completed',
-      lastModified: '2024-03-15'
-    },
-    {
-      id: 4,
-      type: 'Living Will',
-      title: 'Living Will',
-      status: 'Signed',
-      lastModified: '2024-03-10'
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  const loadDocuments = async () => {
+    try {
+      const drafts = await documentService.getAllDrafts();
+      const formattedDocs = drafts.map(doc => ({
+        ...doc,
+        id: doc.metadata.documentId,
+        title: documentService.getDocumentTitle(doc.type),
+        progress: calculateProgress(doc)
+      }));
+      setDocuments(formattedDocs);
+    } catch (error) {
+      console.error('Error loading documents:', error);
     }
-  ];
+  };
 
-  const getStatusColor = (status: Document['status']) => {
+  const calculateProgress = (doc: DocumentData): number => {
+    // Simple progress calculation based on content completeness
+    if (!doc.content) return 0;
+    const totalFields = Object.keys(doc.content).length;
+    const completedFields = Object.values(doc.content).filter(value => value !== undefined && value !== '').length;
+    return Math.round((completedFields / totalFields) * 100);
+  };
+
+  const handleView = async (doc: Document) => {
+    try {
+      const blob = await documentService.generatePDF(doc);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error viewing document:', error);
+    }
+  };
+
+  const handleEdit = (doc: Document) => {
+    // Map document types to their correct edit routes
+    const routeMap = {
+      'will': '/will/create',
+      'living-trust': '/trust/create',
+      'power-of-attorney': '/poa/create',
+      'living-will': '/living-will/create'
+    };
+    navigate(`${routeMap[doc.type]}?id=${doc.id}`);
+  };
+
+  const handleDownload = async (doc: Document) => {
+    try {
+      const blob = await documentService.generatePDF(doc);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${doc.title}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+    }
+  };
+
+  const handleDelete = async (doc: Document) => {
+    setDocumentToDelete(doc);
+  };
+
+  const confirmDelete = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      await documentService.deleteDraft(documentToDelete.id);
+      setDocuments(documents.filter(doc => doc.id !== documentToDelete.id));
+      enqueueSnackbar('Document deleted successfully', { variant: 'success' });
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      enqueueSnackbar('Failed to delete document', { variant: 'error' });
+    } finally {
+      setDocumentToDelete(null);
+    }
+  };
+
+  const getStatusColor = (status: DocumentData['metadata']['status']) => {
     switch (status) {
-      case 'Draft':
+      case 'draft':
         return 'bg-yellow-500';
-      case 'In Review':
-        return 'bg-blue-500';
-      case 'Completed':
+      case 'completed':
         return 'bg-green-500';
-      case 'Signed':
+      case 'submitted':
         return 'bg-purple-500';
       default:
         return 'bg-gray-500';
     }
+  };
+
+  const getStatusDisplay = (status: DocumentData['metadata']['status']): string => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   const documentTypes = [
@@ -67,6 +124,31 @@ const Documents: React.FC = () => {
     { name: 'Power of Attorney', path: '/poa/create' },
     { name: 'Living Will', path: '/living-will/create' }
   ];
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) {
+      const hours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+      if (hours === 0) {
+        const minutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+        return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+      }
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    } else if (diffInDays === 1) {
+      return 'Yesterday';
+    } else if (diffInDays < 7) {
+      return `${diffInDays} days ago`;
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -132,23 +214,44 @@ const Documents: React.FC = () => {
                 <td className="px-6 py-4 text-[#989AA1]">{doc.type}</td>
                 <td className="px-6 py-4">
                   <span className="inline-flex items-center">
-                    <span className={`w-2 h-2 rounded-full ${getStatusColor(doc.status)} mr-2`} />
-                    <span className="text-[#989AA1]">{doc.status}</span>
+                    <span className={`w-2 h-2 rounded-full ${getStatusColor(doc.metadata.status)} mr-2`} />
+                    <span className="text-[#989AA1]">{getStatusDisplay(doc.metadata.status)}</span>
                   </span>
                 </td>
-                <td className="px-6 py-4 text-[#989AA1]">{doc.lastModified}</td>
-                <td className="px-6 py-4">
-                  <div className="flex justify-end space-x-4">
-                    <button className="text-[#989AA1] hover:text-white transition-colors">
-                      View
+                <td className="px-6 py-4 text-[#989AA1]">
+                  <span title={new Date(doc.metadata.updatedAt).toLocaleString()}>
+                    {formatDate(doc.metadata.updatedAt)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end items-center space-x-3">
+                    <button
+                      onClick={() => handleView(doc)}
+                      className="text-[#989AA1] hover:text-white transition-colors"
+                      title="View"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
                     </button>
-                    {doc.status !== 'Signed' && (
-                      <button className="text-[#989AA1] hover:text-white transition-colors">
-                        Edit
-                      </button>
-                    )}
-                    <button className="text-[#989AA1] hover:text-white transition-colors">
-                      Download
+                    <button
+                      onClick={() => handleEdit(doc)}
+                      className="text-[#989AA1] hover:text-white transition-colors"
+                      title="Edit"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(doc)}
+                      className="text-[#989AA1] hover:text-red-500 transition-colors"
+                      title="Delete"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
                     </button>
                   </div>
                 </td>
@@ -157,6 +260,16 @@ const Documents: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      <ConfirmationModal
+        isOpen={!!documentToDelete}
+        onClose={() => setDocumentToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Delete Document"
+        message="Are you sure you want to delete this document? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };

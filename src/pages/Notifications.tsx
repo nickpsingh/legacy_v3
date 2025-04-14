@@ -1,61 +1,93 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store/store';
 
 interface Notification {
   id: string;
   title: string;
   message: string;
-  date: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  timestamp: string;
   read: boolean;
 }
 
 const Notifications: React.FC = () => {
-  const [notifications] = React.useState<Notification[]>([
+  // This will be connected to your notifications state once implemented
+  const notifications: Notification[] = [
     {
       id: '1',
-      title: 'Welcome to Legacy',
-      message: 'Thank you for starting your estate planning journey with us.',
-      date: new Date().toLocaleDateString(),
+      title: 'Document Updated',
+      message: 'Your living trust document has been successfully updated.',
+      type: 'success',
+      timestamp: new Date().toISOString(),
       read: false
     },
     {
       id: '2',
-      title: 'Complete Your Profile',
-      message: 'Please complete your profile to get personalized estate planning recommendations.',
-      date: new Date().toLocaleDateString(),
+      title: 'Reminder',
+      message: 'Please complete your will document setup.',
+      type: 'info',
+      timestamp: new Date().toISOString(),
       read: false
     }
-  ]);
+  ];
+
+  const getNotificationColor = (type: Notification['type']) => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-500/10 text-green-500';
+      case 'error':
+        return 'bg-red-500/10 text-red-500';
+      case 'warning':
+        return 'bg-yellow-500/10 text-yellow-500';
+      default:
+        return 'bg-blue-500/10 text-blue-500';
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-white">Notifications</h1>
-        <button className="px-4 py-2 text-sm text-[#989AA1] hover:text-white transition-colors">
-          Mark all as read
-        </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="grid gap-4">
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`p-4 rounded-lg border ${
-              notification.read ? 'bg-[#101113] border-[#1D1F23]' : 'bg-[#1D1F23] border-[#2D2F33]'
+            className={`p-4 rounded-lg border border-[#1D1F23] ${
+              notification.read ? 'bg-[#101113]' : 'bg-[#1D1F23]'
             }`}
           >
             <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <h3 className="text-white font-medium">{notification.title}</h3>
-                <p className="text-sm text-[#989AA1]">{notification.message}</p>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-lg font-medium text-white">
+                    {notification.title}
+                  </h3>
+                  <span
+                    className={`text-sm px-2 py-0.5 rounded ${getNotificationColor(
+                      notification.type
+                    )}`}
+                  >
+                    {notification.type}
+                  </span>
+                  {!notification.read && (
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  )}
+                </div>
+                <p className="text-[#989AA1]">{notification.message}</p>
+                <p className="text-sm text-[#989AA1] mt-2">
+                  {new Date(notification.timestamp).toLocaleString()}
+                </p>
               </div>
-              <span className="text-xs text-[#989AA1]">{notification.date}</span>
             </div>
           </div>
         ))}
 
         {notifications.length === 0 && (
           <div className="text-center py-8 text-[#989AA1]">
-            <p>No new notifications</p>
+            <p>No notifications at this time.</p>
           </div>
         )}
       </div>

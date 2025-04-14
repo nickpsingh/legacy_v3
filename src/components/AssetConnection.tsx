@@ -33,6 +33,7 @@ const AssetConnection: React.FC = () => {
         name: 'Investment Portfolio',
         type: 'investment',
         value: 100000,
+        amount: 100000,
         description: 'Uploaded investment portfolio',
         lastUpdated: new Date().toISOString()
       };
@@ -41,7 +42,15 @@ const AssetConnection: React.FC = () => {
     }, 1500);
   }, [dispatch, profile, handleAddAsset]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+    onDrop,
+    accept: {
+      'text/csv': ['.csv'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/pdf': ['.pdf']
+    }
+  });
 
   return (
     <div className="p-6 bg-[#101113] rounded-lg border border-[#1D1F23]">

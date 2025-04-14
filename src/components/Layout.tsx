@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { useAuth0 } from '@auth0/auth0-react';
-import { RootState } from '../app/store';
-import { updateProfile } from '../features/user/userSlice';
+import { RootState } from '../store/store';
+import { UserProfile, updateProfile } from '../features/user/userSlice';
 
 interface NavigationItem {
   name: string;
@@ -21,23 +21,50 @@ const Layout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && user && !profile) {
+    if (isAuthenticated && user) {
       const savedProfile = localStorage.getItem('userProfile');
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
-        dispatch(updateProfile({
-          ...parsedProfile,
-          email: user.email || parsedProfile.email,
-          name: parsedProfile.name || `${parsedProfile.firstName} ${parsedProfile.lastName}`,
-        }));
+        const updatedProfile: UserProfile = {
+          uid: user.sub || parsedProfile.uid || crypto.randomUUID(),
+          firstName: 'Nick',
+          lastName: 'Singh',
+          name: 'Nick Singh',
+          email: user.email || parsedProfile.email || '',
+          phone: parsedProfile.phone || '',
+          age: parsedProfile.age || 0,
+          dateOfBirth: parsedProfile.dateOfBirth || '',
+          maritalStatus: parsedProfile.maritalStatus || 'single',
+          address: parsedProfile.address || {
+            street: '',
+            city: '',
+            state: '',
+            zipCode: '',
+            country: 'USA'
+          },
+          state: parsedProfile.state || '',
+          financialInfo: {
+            assets: parsedProfile.financialInfo?.assets || [],
+            liabilities: parsedProfile.financialInfo?.liabilities || [],
+            netWorth: parsedProfile.financialInfo?.netWorth || 0,
+            plaidConnected: parsedProfile.financialInfo?.plaidConnected || false,
+            totalValue: parsedProfile.financialInfo?.totalValue || 0,
+            lastUpdated: parsedProfile.financialInfo?.lastUpdated || new Date().toISOString()
+          },
+          beneficiaries: parsedProfile.beneficiaries || [],
+          lastUpdated: new Date().toISOString()
+        };
+        dispatch(updateProfile(updatedProfile));
       } else if (user.email === 'nickpaulsingh@gmail.com') {
-        dispatch(updateProfile({
+        const newProfile: UserProfile = {
+          uid: user.sub || crypto.randomUUID(),
           firstName: 'Nick',
           lastName: 'Singh',
           name: 'Nick Singh',
           email: user.email,
-          phone: user.phone || '',
+          phone: '',
           age: 0,
+          dateOfBirth: '',
           maritalStatus: 'single',
           address: {
             street: '',
@@ -55,11 +82,13 @@ const Layout: React.FC = () => {
             totalValue: 0,
             lastUpdated: new Date().toISOString()
           },
-          beneficiaries: []
-        }));
+          beneficiaries: [],
+          lastUpdated: new Date().toISOString()
+        };
+        dispatch(updateProfile(newProfile));
       }
     }
-  }, [isAuthenticated, user, profile, dispatch]);
+  }, [isAuthenticated, user, dispatch]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && location.pathname !== '/login') {
@@ -71,7 +100,33 @@ const Layout: React.FC = () => {
     if (profile) {
       localStorage.setItem('userProfile', JSON.stringify(profile));
     }
-    dispatch(updateProfile(null));
+    dispatch(updateProfile({
+      uid: '',
+      firstName: '',
+      lastName: '',
+      name: '',
+      email: '',
+      phone: '',
+      age: 0,
+      dateOfBirth: '',
+      maritalStatus: 'single',
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: '',
+      },
+      state: '',
+      financialInfo: {
+        assets: [],
+        liabilities: [],
+        lastUpdated: new Date().toISOString(),
+        totalValue: 0,
+      },
+      beneficiaries: [],
+      lastUpdated: new Date().toISOString()
+    }));
     logout({ logoutParams: { returnTo: window.location.origin + '/login' } });
   };
 
@@ -93,6 +148,12 @@ const Layout: React.FC = () => {
       description: 'Overview of your estate portfolio'
     },
     {
+      name: 'Notifications',
+      path: '/notifications',
+      icon: '🔔',
+      description: 'View your notifications and updates'
+    },
+    {
       name: 'My Documents',
       path: '/documents',
       icon: '📄',
@@ -111,13 +172,13 @@ const Layout: React.FC = () => {
       description: 'Track your debts and obligations'
     },
     { 
-      name: 'Beneficiaries', 
-      path: '/beneficiaries', 
+      name: 'People', 
+      path: '/people', 
       icon: '👥',
-      description: 'Manage your beneficiaries'
+      description: 'Manage your contacts, beneficiaries, trustees, and executors'
     },
     { 
-      name: 'Profile', 
+      name: 'Nick Singh',
       path: '/profile', 
       icon: '👤',
       description: 'View and edit your profile'
@@ -180,9 +241,6 @@ const Layout: React.FC = () => {
           <div className="hidden md:flex items-center gap-4">
             {isAuthenticated && (
               <>
-                <span className="text-sm text-[#989AA1]">
-                  {profile?.firstName || user?.name || user?.email}
-                </span>
                 <button
                   onClick={handleLogout}
                   className="text-sm text-[#989AA1] hover:text-white transition-colors"
@@ -231,16 +289,6 @@ const Layout: React.FC = () => {
         <div className="hidden md:block fixed w-64 h-full bg-[#000000] border-r border-[#1D1F23] p-4">
           <nav className="space-y-1">
             {navigationItems.map(item => renderNavigationItem(item))}
-            {/* Sign out button in sidebar */}
-            {isAuthenticated && (
-              <button
-                onClick={handleLogout}
-                className="w-full mt-4 px-3 py-2 text-sm text-[#989AA1] hover:text-white transition-colors flex items-center"
-              >
-                <span className="mr-3">🚪</span>
-                Sign out
-              </button>
-            )}
           </nav>
         </div>
 
