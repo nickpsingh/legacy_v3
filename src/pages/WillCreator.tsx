@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { RootState } from '../store/store';
-import { UserProfile, Address } from '../features/user/userSlice';
+import { UserProfile, Address, Asset, addAsset } from '../features/user/userSlice';
 import { Person } from '../features/people/peopleSlice';
 import DocumentSteps from '../components/DocumentSteps';
 import DocumentLayout from '../components/DocumentLayout';
@@ -12,16 +12,20 @@ import { documentService } from '../services/document.service';
 import { DocumentData, DocumentType } from '../types/document';
 import { useSnackbar } from 'notistack';
 import Modal from '../components/Modal';
-import { FiInfo } from 'react-icons/fi';
+import { FiInfo, FiPlus, FiCheck } from 'react-icons/fi';
 import { IconType } from 'react-icons';
 import type { IconBaseProps } from 'react-icons';
 
-interface Asset {
-  id: string;
-  description: string;
-  value: number;
-  type: 'real-estate' | 'financial' | 'personal-property';
-}
+// Create icon components with proper typing
+const PlusIcon = () => {
+  const Icon = FiPlus as React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>;
+  return <Icon size={16} aria-hidden={true} />;
+};
+
+const CheckIcon = () => {
+  const Icon = FiCheck as React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>;
+  return <Icon size={12} aria-hidden={true} />;
+};
 
 interface WillExecutor extends Omit<Person, 'roles'> {
   roles: {
@@ -92,11 +96,14 @@ const Tooltip: React.FC<{ text: string }> = ({ text }) => {
 const WillCreator: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
   const searchParams = new URLSearchParams(location.search);
   const existingDocumentId = searchParams.get('id');
   
   const profile = useSelector((state: RootState) => state.user.profile) as UserProfile | null;
   const { people } = useSelector((state: RootState) => state.people);
+  const userAssets = profile?.financialInfo?.assets || [];
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [documentId, setDocumentId] = useState<string | null>(existingDocumentId);
   const [documentStatus, setDocumentStatus] = useState<'draft' | 'completed' | 'submitted'>('draft');
@@ -112,6 +119,14 @@ const WillCreator: React.FC = () => {
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [showAddAssetModal, setShowAddAssetModal] = useState(false);
+  const [newAssetForm, setNewAssetForm] = useState({
+    name: '',
+    type: 'real_estate' as Asset['type'],
+    value: 0,
+    amount: 0,
+    description: ''
+  });
 
   useEffect(() => {
     const loadExistingDocument = async () => {
@@ -485,25 +500,50 @@ const WillCreator: React.FC = () => {
   };
 
   const handleAddAsset = () => {
-    const newAsset: Asset = {
-      id: crypto.randomUUID(),
-      description: '',
-      value: 0,
-      type: 'financial'
-    };
-    setSelectedAssets([...selectedAssets, newAsset]);
+    setShowAddAssetModal(true);
   };
 
-  const handleAssetChange = (index: number, field: keyof Asset, value: string | number) => {
-    setSelectedAssets(prevAssets => {
-      const newAssets = [...prevAssets];
-      newAssets[index] = {
-        ...newAssets[index],
-        [field]: field === 'value' ? Number(value) : value
-      };
-      return newAssets;
+  const handleAssetToggle = (asset: Asset) => {
+    setSelectedAssets(prevSelected => {
+      const isSelected = prevSelected.some(a => a.id === asset.id);
+      if (isSelected) {
+        return prevSelected.filter(a => a.id !== asset.id);
+      } else {
+        return [...prevSelected, asset];
+      }
     });
   };
+
+  const handleCreateNewAsset = () => {
+    if (!newAssetForm.name.trim()) {
+      enqueueSnackbar('Please enter an asset name', { variant: 'error' });
+      return;
+    }
+
+    const newAsset: Asset = {
+      id: crypto.randomUUID(),
+      name: newAssetForm.name,
+      type: newAssetForm.type,
+      value: newAssetForm.value,
+      amount: newAssetForm.amount || newAssetForm.value,
+      description: newAssetForm.description,
+      lastUpdated: new Date().toISOString()
+    };
+
+    dispatch(addAsset(newAsset));
+    setSelectedAssets(prev => [...prev, newAsset]);
+    setNewAssetForm({
+      name: '',
+      type: 'real_estate',
+      value: 0,
+      amount: 0,
+      description: ''
+    });
+    setShowAddAssetModal(false);
+    enqueueSnackbar('Asset added successfully', { variant: 'success' });
+  };
+
+
 
   const handleSubmit = async () => {
     if (!profile) {
@@ -734,60 +774,102 @@ const WillCreator: React.FC = () => {
         );
       case 3:
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center">
-              Assets
-              <Tooltip text="List your major assets to ensure they're properly distributed according to your wishes. This helps your executor identify and locate your assets." />
-            </h2>
-            <p className="text-[#989AA1]">Add assets to be included in your will</p>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold flex items-center">
+                Assets
+                <Tooltip text="Select assets from your existing list or add new ones to be included in your will. This helps your executor identify and locate your assets." />
+              </h2>
+              <p className="text-[#989AA1]">Select assets to include in your will</p>
+            </div>
             
-            <button
-              onClick={handleAddAsset}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              + Add Asset
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={handleAddAsset}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+              >
+                <PlusIcon />
+                Add New Asset
+              </button>
+            </div>
 
-            <div className="space-y-4">
-              {selectedAssets.map((asset, index) => (
-                <div key={asset.id} className="bg-[#1A1B1E] p-4 rounded-lg">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[#989AA1] mb-1">Description</label>
-                      <input
-                        type="text"
-                        value={asset.description}
-                        onChange={(e) => handleAssetChange(index, 'description', e.target.value)}
-                        className="w-full bg-[#2D2F33] text-white border border-[#2D2F33] rounded-lg p-2"
-                        placeholder="Enter asset description"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#989AA1] mb-1">Value</label>
-                      <input
-                        type="number"
-                        value={asset.value}
-                        onChange={(e) => handleAssetChange(index, 'value', e.target.value)}
-                        className="w-full bg-[#2D2F33] text-white border border-[#2D2F33] rounded-lg p-2"
-                        placeholder="Enter asset value"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#989AA1] mb-1">Type</label>
-                      <select
-                        value={asset.type}
-                        onChange={(e) => handleAssetChange(index, 'type', e.target.value)}
-                        className="w-full bg-[#2D2F33] text-white border border-[#2D2F33] rounded-lg p-2"
+            {/* Existing Assets */}
+            {userAssets.length > 0 && (
+              <div>
+                <h3 className="text-lg font-medium text-white mb-3">Your Assets</h3>
+                <div className="space-y-2">
+                  {userAssets.map((asset) => {
+                    const isSelected = selectedAssets.some(a => a.id === asset.id);
+                    return (
+                      <div 
+                        key={asset.id} 
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          isSelected 
+                            ? 'border-blue-500 bg-blue-500/10' 
+                            : 'border-[#2D2F33] bg-[#1A1B1E] hover:border-[#404040]'
+                        }`}
+                        onClick={() => handleAssetToggle(asset)}
                       >
-                        <option value="real-estate">Real Estate</option>
-                        <option value="financial">Financial Assets</option>
-                        <option value="personal-property">Personal Property</option>
-                      </select>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                                isSelected ? 'border-blue-500 bg-blue-500' : 'border-[#989AA1]'
+                              }`}>
+                                {isSelected && <CheckIcon />}
+                              </div>
+                              <div>
+                                <p className="text-white font-medium">{asset.name}</p>
+                                <p className="text-[#989AA1] text-sm">{asset.description}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white font-medium">${asset.value.toLocaleString()}</p>
+                            <p className="text-[#989AA1] text-sm capitalize">{asset.type.replace('_', ' ')}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Selected Assets Summary */}
+            {selectedAssets.length > 0 && (
+              <div className="bg-[#1A1B1E] p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-white mb-3">Selected Assets ({selectedAssets.length})</h3>
+                <div className="space-y-2">
+                  {selectedAssets.map((asset) => (
+                    <div key={asset.id} className="flex justify-between items-center">
+                      <span className="text-white">{asset.name}</span>
+                      <span className="text-[#989AA1]">${asset.value.toLocaleString()}</span>
                     </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-[#2D2F33]">
+                  <div className="flex justify-between items-center font-medium">
+                    <span className="text-white">Total Value:</span>
+                    <span className="text-white">
+                      ${selectedAssets.reduce((sum, asset) => sum + asset.value, 0).toLocaleString()}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {userAssets.length === 0 && (
+              <div className="text-center py-8 bg-[#1A1B1E] rounded-lg">
+                <p className="text-[#989AA1] mb-4">No assets found. Add some assets to include in your will.</p>
+                <button
+                  onClick={handleAddAsset}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  Add Your First Asset
+                </button>
+              </div>
+            )}
           </div>
         );
       case 4:
@@ -993,6 +1075,84 @@ const WillCreator: React.FC = () => {
               className="px-4 py-2 bg-[#1D1F23] text-white rounded-lg hover:bg-[#2D2F33] transition-colors"
             >
               Continue Editing
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add Asset Modal */}
+      <Modal 
+        isOpen={showAddAssetModal} 
+        onClose={() => setShowAddAssetModal(false)}
+        title="Add New Asset"
+      >
+        <div className="bg-[#1A1B1E] p-6 rounded-lg max-w-md w-full">
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-[#989AA1] mb-1">Asset Name</label>
+              <input
+                type="text"
+                value={newAssetForm.name}
+                onChange={(e) => setNewAssetForm(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full bg-[#2D2F33] text-white border border-[#2D2F33] rounded-lg p-2"
+                placeholder="Enter asset name (e.g., Primary Residence)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#989AA1] mb-1">Asset Type</label>
+              <select
+                value={newAssetForm.type}
+                onChange={(e) => setNewAssetForm(prev => ({ ...prev, type: e.target.value as Asset['type'] }))}
+                className="w-full bg-[#2D2F33] text-white border border-[#2D2F33] rounded-lg p-2"
+              >
+                <option value="real_estate">Real Estate</option>
+                <option value="investment">Investment</option>
+                <option value="bank_account">Bank Account</option>
+                <option value="vehicle">Vehicle</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#989AA1] mb-1">Estimated Value</label>
+              <input
+                type="number"
+                value={newAssetForm.value}
+                onChange={(e) => setNewAssetForm(prev => ({ 
+                  ...prev, 
+                  value: Number(e.target.value),
+                  amount: Number(e.target.value) // Keep amount in sync with value
+                }))}
+                className="w-full bg-[#2D2F33] text-white border border-[#2D2F33] rounded-lg p-2"
+                placeholder="Enter asset value"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#989AA1] mb-1">Description</label>
+              <textarea
+                value={newAssetForm.description}
+                onChange={(e) => setNewAssetForm(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full bg-[#2D2F33] text-white border border-[#2D2F33] rounded-lg p-2 h-20"
+                placeholder="Enter asset description (optional)"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={handleCreateNewAsset}
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Add Asset
+            </button>
+            <button
+              onClick={() => setShowAddAssetModal(false)}
+              className="px-4 py-2 bg-[#1D1F23] text-white rounded-lg hover:bg-[#2D2F33] transition-colors"
+            >
+              Cancel
             </button>
           </div>
         </div>

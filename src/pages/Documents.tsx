@@ -119,10 +119,26 @@ const Documents: React.FC = () => {
   };
 
   const documentTypes = [
-    { name: 'Last Will and Testament', path: '/will/create' },
-    { name: 'Living Trust', path: '/trust/create' },
-    { name: 'Power of Attorney', path: '/poa/create' },
-    { name: 'Living Will', path: '/living-will/create' }
+    { 
+      name: 'Last Will and Testament', 
+      path: '/will/create',
+      description: 'Distribute your assets and name guardians for minor children'
+    },
+    { 
+      name: 'Living Trust', 
+      path: '/trust/create',
+      description: 'Avoid probate and manage assets during your lifetime and after death'
+    },
+    { 
+      name: 'Power of Attorney', 
+      path: '/poa/create',
+      description: 'Authorize someone to make financial and legal decisions on your behalf'
+    },
+    { 
+      name: 'Living Will', 
+      path: '/living-will/create',
+      description: 'Document your medical treatment preferences if you cannot communicate'
+    }
   ];
 
   const formatDate = (dateString: string): string => {
@@ -167,14 +183,15 @@ const Documents: React.FC = () => {
           </button>
           
           {isCreateMenuOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-[#1A1B1E] rounded-md shadow-lg z-10">
+            <div className="absolute right-0 mt-2 w-80 bg-[#1A1B1E] rounded-md shadow-lg z-10">
               {documentTypes.map((docType) => (
                 <Link
                   key={docType.path}
                   to={docType.path}
-                  className="block px-4 py-2 text-sm text-[#989AA1] hover:bg-[#2D2F34] hover:text-white transition-colors"
+                  className="block px-4 py-3 text-sm hover:bg-[#2D2F34] transition-colors border-b border-[#2D2F34] last:border-0"
                 >
-                  {docType.name}
+                  <div className="text-white font-medium">{docType.name}</div>
+                  <div className="text-[#989AA1] text-xs mt-1 leading-relaxed">{docType.description}</div>
                 </Link>
               ))}
             </div>
