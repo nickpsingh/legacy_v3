@@ -2,6 +2,8 @@
 
 An enhanced and improved version of the estate planning platform built with React, TypeScript, and Tailwind CSS. This version includes significant improvements to user experience, asset management, and document creation workflows.
 
+**🚀 Ready for immediate deployment** - No authentication setup required!
+
 ## ✨ New Features & Enhancements
 
 ### 🔧 **Enhanced Asset Integration**
@@ -23,6 +25,7 @@ An enhanced and improved version of the estate planning platform built with Reac
 - **Visual Feedback**: Enhanced selection states and hover effects throughout the application
 - **Progress Persistence**: All form progress including asset selections are automatically saved
 - **Error Handling**: Better validation and user feedback for form submissions
+- **Simplified Access**: No authentication required - immediate access to all features
 
 ## Features
 
@@ -48,7 +51,7 @@ An enhanced and improved version of the estate planning platform built with Reac
 - Tailwind CSS
 - React Router v6
 - Material-UI Components
-- Auth0 Authentication
+- Local Storage for data persistence
 
 ## Getting Started
 
@@ -69,17 +72,14 @@ cd legacy_v2
 npm install
 ```
 
-3. Create a `.env` file in the root directory and add necessary environment variables:
-```bash
-cp .env.example .env
-```
-
-4. Start the development server:
+3. Start the development server:
 ```bash
 npm start
 ```
 
 The application will be available at `http://localhost:3000`
+
+**Note**: No environment variables or authentication setup required! The app works out of the box with a demo user profile.
 
 ### Building for Production
 
@@ -101,9 +101,17 @@ npm run build
 - **Enhanced Tooltips**: Helpful information throughout the document creation process
 
 ### Technical Improvements
+- **Simplified Architecture**: Removed authentication dependencies for easier deployment
 - **TypeScript Fixes**: Resolved React Icons compilation issues for better development experience
 - **Enhanced State Management**: Better Redux integration for asset management
 - **Improved Save Logic**: More robust saving and loading of document drafts
+- **Zero-Config Deployment**: Ready for Vercel, Netlify, or any static hosting service
+
+### Deployment Ready Features
+- **No Authentication Setup**: Works immediately without OAuth configuration
+- **Local Data Persistence**: Uses localStorage for data storage and persistence
+- **Environment Agnostic**: No environment variables required for basic functionality
+- **Static Build Compatible**: Perfect for JAMstack deployment platforms
 
 ## Contributing
 
@@ -119,7 +127,14 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Deployment
 
-The application can be deployed on Vercel, Netlify, or any static hosting service.
+### Vercel (Recommended)
+1. Connect your GitHub repository to Vercel
+2. Deploy with default settings - no configuration needed!
+
+### Other Platforms
+- **Netlify**: Drag and drop the `build` folder
+- **GitHub Pages**: Enable Pages in repository settings
+- **Any static host**: Upload the `build` folder contents
 
 ## Contact
 
@@ -131,5 +146,6 @@ Project Link: [https://github.com/nickpsingh/legacy_v2](https://github.com/nickp
 
 ## Version History
 
+- **V2.1**: Removed authentication dependencies for simplified deployment
 - **V2.0**: Enhanced asset integration, improved document descriptions, better user experience
 - **V1.0**: Initial estate planning platform with basic document creation capabilities
