@@ -64,6 +64,17 @@ const Profile: React.FC = () => {
             }
           });
         }
+      } else if (name === 'name') {
+        // When name changes, also update firstName and lastName
+        const nameParts = value.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        setEditedProfile({
+          ...editedProfile,
+          name: value,
+          firstName: firstName,
+          lastName: lastName
+        });
       } else {
         setEditedProfile({
           ...editedProfile,

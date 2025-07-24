@@ -3,13 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
 import { UserProfile, updateProfile } from '../features/user/userSlice';
-
-interface NavigationItem {
-  name: string;
-  path: string;
-  icon: string;
-  description: string;
-}
+import { LAYOUT_NAVIGATION_ITEMS, NavigationItem } from '../constants/navigation';
 
 const Layout: React.FC = () => {
   const location = useLocation();
@@ -20,79 +14,41 @@ const Layout: React.FC = () => {
 
   useEffect(() => {
     // Initialize default user profile if none exists
-    if (!profile) {
-      const savedProfile = localStorage.getItem('userProfile');
-      if (savedProfile) {
-        const parsedProfile = JSON.parse(savedProfile);
-        const updatedProfile: UserProfile = {
-          uid: parsedProfile.uid || crypto.randomUUID(),
-          firstName: 'Demo',
-          lastName: 'User',
-          name: 'Demo User',
-          email: parsedProfile.email || 'demo@example.com',
-          phone: parsedProfile.phone || '',
-          age: parsedProfile.age || 0,
-          dateOfBirth: parsedProfile.dateOfBirth || '',
-          maritalStatus: parsedProfile.maritalStatus || 'single',
-          address: parsedProfile.address || {
-            street: '',
-            city: '',
-            state: '',
-            zipCode: '',
-            country: 'USA'
-          },
-          state: parsedProfile.state || '',
-          financialInfo: {
-            assets: parsedProfile.financialInfo?.assets || [],
-            liabilities: parsedProfile.financialInfo?.liabilities || [],
-            netWorth: parsedProfile.financialInfo?.netWorth || 0,
-            plaidConnected: parsedProfile.financialInfo?.plaidConnected || false,
-            totalValue: parsedProfile.financialInfo?.totalValue || 0,
-            lastUpdated: parsedProfile.financialInfo?.lastUpdated || new Date().toISOString()
-          },
-          beneficiaries: parsedProfile.beneficiaries || [],
-          lastUpdated: new Date().toISOString()
-        };
-        dispatch(updateProfile(updatedProfile));
-      } else {
-        const newProfile: UserProfile = {
-          uid: crypto.randomUUID(),
-          firstName: 'Demo',
-          lastName: 'User',
-          name: 'Demo User',
-          email: 'demo@example.com',
-          phone: '',
-          age: 0,
-          dateOfBirth: '',
-          maritalStatus: 'single',
-          address: {
-            street: '',
-            city: '',
-            state: '',
-            zipCode: '',
-            country: 'USA'
-          },
+    if (!profile || (!profile.uid && !profile.name)) {
+      const newProfile: UserProfile = {
+        uid: crypto.randomUUID(),
+        firstName: 'Demo',
+        lastName: 'User',
+        name: 'Demo User',
+        email: 'demo@example.com',
+        phone: '',
+        age: 0,
+        dateOfBirth: '',
+        maritalStatus: 'single',
+        address: {
+          street: '',
+          city: '',
           state: '',
-          financialInfo: {
-            assets: [],
-            liabilities: [],
-            netWorth: 0,
-            plaidConnected: false,
-            totalValue: 0,
-            lastUpdated: new Date().toISOString()
-          },
-          beneficiaries: [],
+          zipCode: '',
+          country: 'USA'
+        },
+        state: '',
+        financialInfo: {
+          assets: [],
+          liabilities: [],
+          netWorth: 0,
+          plaidConnected: false,
+          totalValue: 0,
           lastUpdated: new Date().toISOString()
-        };
-        dispatch(updateProfile(newProfile));
-      }
+        },
+        beneficiaries: [],
+        lastUpdated: new Date().toISOString()
+      };
+      dispatch(updateProfile(newProfile));
     }
   }, [dispatch, profile]);
 
   const handleLogout = () => {
-    if (profile) {
-      localStorage.setItem('userProfile', JSON.stringify(profile));
-    }
     dispatch(updateProfile({
       uid: '',
       firstName: '',
@@ -127,56 +83,7 @@ const Layout: React.FC = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const navigationItems: NavigationItem[] = [
-    { 
-      name: 'Get Started', 
-      path: '/get-started', 
-      icon: '🚀',
-      description: 'Begin your legacy journey with our guided questionnaire'
-    },
-    { 
-      name: 'Dashboard', 
-      path: '/dashboard', 
-      icon: '📊',
-      description: 'Overview of your estate portfolio'
-    },
-    {
-      name: 'Notifications',
-      path: '/notifications',
-      icon: '🔔',
-      description: 'View your notifications and updates'
-    },
-    {
-      name: 'My Documents',
-      path: '/documents',
-      icon: '📄',
-      description: 'Manage all your estate planning documents'
-    },
-    { 
-      name: 'Assets', 
-      path: '/assets', 
-      icon: '💰',
-      description: 'Manage your assets and property'
-    },
-    { 
-      name: 'Liabilities', 
-      path: '/liabilities', 
-      icon: '📊',
-      description: 'Track your debts and obligations'
-    },
-    { 
-      name: 'People', 
-      path: '/people', 
-      icon: '👥',
-      description: 'Manage your contacts, beneficiaries, trustees, and executors'
-    },
-    { 
-      name: 'Nick Singh',
-      path: '/profile', 
-      icon: '👤',
-      description: 'View and edit your profile'
-    }
-  ];
+  const navigationItems = LAYOUT_NAVIGATION_ITEMS;
 
   const renderNavigationItem = (item: NavigationItem) => (
     <Link

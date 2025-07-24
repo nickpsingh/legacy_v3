@@ -71,12 +71,12 @@ interface WillData {
 }
 
 const steps = [
-  { id: 1, title: 'Personal Information' },
-  { id: 2, title: 'Executors' },
-  { id: 3, title: 'Beneficiaries' },
-  { id: 4, title: 'Assets' },
-  { id: 5, title: 'Special Requests' },
-  { id: 6, title: 'Review & Submit' }
+  { id: 0, title: 'Personal Information' },
+  { id: 1, title: 'Executors' },
+  { id: 2, title: 'Beneficiaries' },
+  { id: 3, title: 'Assets' },
+  { id: 4, title: 'Special Requests' },
+  { id: 5, title: 'Review & Submit' }
 ];
 
 // Add Tooltip component

@@ -5,13 +5,7 @@ import DocumentSteps from './DocumentSteps';
 import { DocumentType } from '../types/document';
 import { RootState } from '../app/store';
 import Modal from './Modal';
-
-interface NavigationItem {
-  name: string;
-  path: string;
-  icon: string;
-  description: string;
-}
+import { LAYOUT_NAVIGATION_ITEMS } from '../constants/navigation';
 
 interface DocumentLayoutProps {
   children: React.ReactNode;
@@ -36,50 +30,7 @@ const DocumentLayout: React.FC<DocumentLayoutProps> = ({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const navigationItems: NavigationItem[] = [
-    { 
-      name: 'Get Started', 
-      path: '/get-started', 
-      icon: '🚀',
-      description: 'Begin your legacy journey with our guided questionnaire'
-    },
-    { 
-      name: 'Dashboard', 
-      path: '/dashboard', 
-      icon: '📊',
-      description: 'Overview of your estate portfolio'
-    },
-    {
-      name: 'My Documents',
-      path: '/documents',
-      icon: '📄',
-      description: 'Manage all your estate planning documents'
-    },
-    { 
-      name: 'Assets', 
-      path: '/assets', 
-      icon: '💰',
-      description: 'Manage your assets and property'
-    },
-    { 
-      name: 'Liabilities', 
-      path: '/liabilities', 
-      icon: '📊',
-      description: 'Track your debts and obligations'
-    },
-    { 
-      name: 'People', 
-      path: '/people', 
-      icon: '👥',
-      description: 'Manage your contacts, beneficiaries, trustees, and executors'
-    },
-    { 
-      name: 'Profile', 
-      path: '/profile', 
-      icon: '👤',
-      description: 'View and edit your profile'
-    }
-  ];
+  const navigationItems = LAYOUT_NAVIGATION_ITEMS;
 
   const handleSave = async () => {
     if (onSave) {
@@ -100,7 +51,7 @@ const DocumentLayout: React.FC<DocumentLayoutProps> = ({
       {/* Left Navigation */}
       <div className="fixed left-0 top-14 bottom-0 w-64 bg-[#000000] border-r border-[#1D1F23] overflow-y-auto">
         <div className="p-4">
-          <nav className="space-y-2">
+          <nav className="space-y-1">
             {navigationItems.map((item) => (
               <Link
                 key={item.path}
