@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../app/store';
 import { Link, useNavigate } from 'react-router-dom';
-import { Asset, Liability } from '../features/user/userSlice';
+import { Asset, Liability, UserProfile, updateProfile } from '../features/user/userSlice';
 import { FiArrowRight } from 'react-icons/fi';
+import type { IconType } from 'react-icons';
 
 interface Notification {
   id: string;
@@ -61,8 +62,12 @@ const ArrowIcon = () => {
 };
 
 const Dashboard: React.FC = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { profile } = useSelector((state: RootState) => state.user);
+
+  // Profile initialization is now handled by Layout component
+  // No Auth0 initialization needed
 
   const calculateAssetTotal = (assets: Asset[]): number => {
     return assets.reduce((sum, asset) => sum + (asset.value || 0), 0);
@@ -72,217 +77,111 @@ const Dashboard: React.FC = () => {
     return liabilities.reduce((sum, liability) => sum + (liability.amount || 0), 0);
   };
 
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const totalAssets = calculateAssetTotal(profile?.financialInfo?.assets ?? []);
+  const totalLiabilities = calculateLiabilityTotal(profile?.financialInfo?.liabilities ?? []);
+  const netWorth = totalAssets - totalLiabilities;
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const assets = profile?.financialInfo?.assets || [];
-  const liabilities = profile?.financialInfo?.liabilities || [];
-  const assetTotal = calculateAssetTotal(assets);
-  const liabilityTotal = calculateLiabilityTotal(liabilities);
-  const netWorth = assetTotal - liabilityTotal;
-
-  const documentProgress = {
-    completed: MOCK_DOCUMENTS.filter(doc => doc.status === 'submitted').length,
-    total: MOCK_DOCUMENTS.length
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) {
+      return 'Today';
+    } else if (diffInDays === 1) {
+      return 'Yesterday';
+    } else if (diffInDays < 7) {
+      return `${diffInDays} days ago`;
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">
-          Welcome back, {profile?.firstName || 'Demo User'}!
-        </h1>
-        <p className="text-blue-100">
-          Your estate planning progress: {documentProgress.completed} of {documentProgress.total} documents completed
-        </p>
-      </div>
+    <div className="min-h-screen bg-black text-white p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold mb-8">Welcome back, {profile?.firstName || 'Guest'}</h1>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#101113] rounded-lg p-6 border border-[#1D1F23]">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-[#989AA1]">Total Assets</h3>
-            <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-              <span className="text-white text-lg">📈</span>
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-white">{formatCurrency(assetTotal)}</p>
-          <Link 
-            to="/assets"
-            className="text-sm text-blue-400 hover:text-blue-300 mt-2 inline-flex items-center"
-          >
-            Manage Assets
-            <ArrowIcon />
-          </Link>
-        </div>
-
-        <div className="bg-[#101113] rounded-lg p-6 border border-[#1D1F23]">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-[#989AA1]">Total Liabilities</h3>
-            <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
-              <span className="text-white text-lg">📉</span>
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-white">{formatCurrency(liabilityTotal)}</p>
-          <Link 
-            to="/liabilities"
-            className="text-sm text-blue-400 hover:text-blue-300 mt-2 inline-flex items-center"
-          >
-            Manage Liabilities
-            <ArrowIcon />
-          </Link>
-        </div>
-
-        <div className="bg-[#101113] rounded-lg p-6 border border-[#1D1F23]">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-[#989AA1]">Net Worth</h3>
-            <div className={`w-8 h-8 ${netWorth >= 0 ? 'bg-blue-500' : 'bg-yellow-500'} rounded-lg flex items-center justify-center`}>
-              <span className="text-white text-lg">💰</span>
-            </div>
-          </div>
-          <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-green-400' : 'text-yellow-400'}`}>
-            {formatCurrency(netWorth)}
-          </p>
-          <Link 
-            to="/profile"
-            className="text-sm text-blue-400 hover:text-blue-300 mt-2 inline-flex items-center"
-          >
-            View Profile
-            <ArrowIcon />
-          </Link>
-        </div>
-      </div>
-
-      {/* Documents and Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Documents */}
-        <div className="bg-[#101113] rounded-lg p-6 border border-[#1D1F23]">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Recent Documents</h2>
-            <Link 
-              to="/documents"
-              className="text-sm text-blue-400 hover:text-blue-300"
-            >
-              View All
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {MOCK_DOCUMENTS.slice(0, 3).map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between p-3 bg-[#1A1B1E] rounded-lg">
-                <div>
-                  <h3 className="text-sm font-medium text-white">{doc.title}</h3>
-                  <p className="text-xs text-[#989AA1]">
-                    Updated {formatDate(doc.lastUpdated)}
-                  </p>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs rounded-full ${
-                    doc.status === 'submitted'
-                      ? 'bg-green-500/20 text-green-400'
-                      : 'bg-yellow-500/20 text-yellow-400'
-                  }`}
+        <div className="grid grid-cols-3 gap-8">
+          {/* Left Column */}
+          <div className="col-span-2 space-y-8">
+            {/* Recent Activity */}
+            <div className="bg-[#111] rounded-xl p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold">Recent Activity</h2>
+                <button 
+                  onClick={() => navigate('/notifications')}
+                  className="text-blue-500 hover:text-blue-400 flex items-center gap-2"
                 >
-                  {doc.status === 'submitted' ? 'Complete' : 'In Progress'}
-                </span>
+                  View All <ArrowIcon />
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="space-y-4">
+                {MOCK_NOTIFICATIONS.map((notification) => (
+                  <div key={notification.id} className="bg-[#1A1A1A] rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-200">{notification.message}</span>
+                      <span className="text-gray-400 text-sm">{formatDate(notification.date)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-        {/* Recent Notifications */}
-        <div className="bg-[#101113] rounded-lg p-6 border border-[#1D1F23]">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-            <Link 
-              to="/notifications"
-              className="text-sm text-blue-400 hover:text-blue-300"
-            >
-              View All
-            </Link>
+            {/* My Documents */}
+            <div className="bg-[#111] rounded-xl p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold">My Documents</h2>
+                <button
+                  onClick={() => navigate('/documents')}
+                  className="text-blue-500 hover:text-blue-400 flex items-center gap-2"
+                >
+                  View All <ArrowIcon />
+                </button>
+              </div>
+              <div className="space-y-4">
+                {MOCK_DOCUMENTS.map((doc) => (
+                  <div key={doc.id} className="bg-[#1A1A1A] rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-200">{doc.title}</span>
+                      <span className={`px-2 py-1 rounded text-sm ${
+                        doc.status === 'submitted' 
+                          ? 'bg-green-900 text-green-200' 
+                          : 'bg-yellow-900 text-yellow-200'
+                      }`}>
+                        {doc.status === 'submitted' ? 'Submitted' : 'In Progress'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-400">Last updated {formatDate(doc.lastUpdated)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="space-y-3">
-            {MOCK_NOTIFICATIONS.slice(0, 3).map((notification) => (
-              <div key={notification.id} className="flex items-start space-x-3 p-3 bg-[#1A1B1E] rounded-lg">
-                <div
-                  className={`w-2 h-2 rounded-full mt-2 ${
-                    notification.type === 'info'
-                      ? 'bg-blue-400'
-                      : notification.type === 'success'
-                      ? 'bg-green-400'
-                      : 'bg-yellow-400'
-                  }`}
-                />
-                <div className="flex-1">
-                  <p className="text-sm text-white">{notification.message}</p>
-                  <p className="text-xs text-[#989AA1] mt-1">
-                    {formatDate(notification.date)}
-                  </p>
+
+          {/* Right Column - Net Worth */}
+          <div className="bg-[#111] rounded-xl p-4">
+            <div className="mb-4">
+              <h2 className="text-2xl font-semibold mb-1">Net Worth</h2>
+              <p className="text-3xl font-bold">${netWorth.toLocaleString()}</p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-400">Total Assets</p>
+                  <Link to="/assets" className="text-blue-500 hover:text-blue-400 text-sm">View →</Link>
                 </div>
+                <p className="text-xl font-bold text-green-500">${totalAssets.toLocaleString()}</p>
               </div>
-            ))}
+              <div>
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-400">Total Liabilities</p>
+                  <Link to="/liabilities" className="text-blue-500 hover:text-blue-400 text-sm">View →</Link>
+                </div>
+                <p className="text-xl font-bold text-red-500">${totalLiabilities.toLocaleString()}</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-[#101113] rounded-lg p-6 border border-[#1D1F23]">
-        <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Link
-            to="/will/create"
-            className="flex flex-col items-center p-4 bg-[#1A1B1E] rounded-lg hover:bg-[#2D2F34] transition-colors"
-          >
-            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mb-3">
-              <span className="text-white text-xl">📝</span>
-            </div>
-            <span className="text-sm font-medium text-white">Create Will</span>
-          </Link>
-
-          <Link
-            to="/trust/create"
-            className="flex flex-col items-center p-4 bg-[#1A1B1E] rounded-lg hover:bg-[#2D2F34] transition-colors"
-          >
-            <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mb-3">
-              <span className="text-white text-xl">🏛️</span>
-            </div>
-            <span className="text-sm font-medium text-white">Create Trust</span>
-          </Link>
-
-          <Link
-            to="/assets"
-            className="flex flex-col items-center p-4 bg-[#1A1B1E] rounded-lg hover:bg-[#2D2F34] transition-colors"
-          >
-            <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-3">
-              <span className="text-white text-xl">🏠</span>
-            </div>
-            <span className="text-sm font-medium text-white">Add Assets</span>
-          </Link>
-
-          <Link
-            to="/people"
-            className="flex flex-col items-center p-4 bg-[#1A1B1E] rounded-lg hover:bg-[#2D2F34] transition-colors"
-          >
-            <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mb-3">
-              <span className="text-white text-xl">👥</span>
-            </div>
-            <span className="text-sm font-medium text-white">Add People</span>
-          </Link>
         </div>
       </div>
     </div>
