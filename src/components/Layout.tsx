@@ -23,26 +23,82 @@ const Layout: React.FC = () => {
     if (!profile) {
       const savedProfile = localStorage.getItem('userProfile');
       if (savedProfile) {
-        try {
-          const parsedProfile = JSON.parse(savedProfile);
-          dispatch(updateProfile(parsedProfile));
-        } catch (error) {
-          console.error('Error parsing saved profile:', error);
-          initializeDefaultProfile();
-        }
+        const parsedProfile = JSON.parse(savedProfile);
+        const updatedProfile: UserProfile = {
+          uid: parsedProfile.uid || crypto.randomUUID(),
+          firstName: 'Demo',
+          lastName: 'User',
+          name: 'Demo User',
+          email: parsedProfile.email || 'demo@example.com',
+          phone: parsedProfile.phone || '',
+          age: parsedProfile.age || 0,
+          dateOfBirth: parsedProfile.dateOfBirth || '',
+          maritalStatus: parsedProfile.maritalStatus || 'single',
+          address: parsedProfile.address || {
+            street: '',
+            city: '',
+            state: '',
+            zipCode: '',
+            country: 'USA'
+          },
+          state: parsedProfile.state || '',
+          financialInfo: {
+            assets: parsedProfile.financialInfo?.assets || [],
+            liabilities: parsedProfile.financialInfo?.liabilities || [],
+            netWorth: parsedProfile.financialInfo?.netWorth || 0,
+            plaidConnected: parsedProfile.financialInfo?.plaidConnected || false,
+            totalValue: parsedProfile.financialInfo?.totalValue || 0,
+            lastUpdated: parsedProfile.financialInfo?.lastUpdated || new Date().toISOString()
+          },
+          beneficiaries: parsedProfile.beneficiaries || [],
+          lastUpdated: new Date().toISOString()
+        };
+        dispatch(updateProfile(updatedProfile));
       } else {
-        initializeDefaultProfile();
+        const newProfile: UserProfile = {
+          uid: crypto.randomUUID(),
+          firstName: 'Demo',
+          lastName: 'User',
+          name: 'Demo User',
+          email: 'demo@example.com',
+          phone: '',
+          age: 0,
+          dateOfBirth: '',
+          maritalStatus: 'single',
+          address: {
+            street: '',
+            city: '',
+            state: '',
+            zipCode: '',
+            country: 'USA'
+          },
+          state: '',
+          financialInfo: {
+            assets: [],
+            liabilities: [],
+            netWorth: 0,
+            plaidConnected: false,
+            totalValue: 0,
+            lastUpdated: new Date().toISOString()
+          },
+          beneficiaries: [],
+          lastUpdated: new Date().toISOString()
+        };
+        dispatch(updateProfile(newProfile));
       }
     }
-  }, [profile, dispatch]);
+  }, [dispatch, profile]);
 
-  const initializeDefaultProfile = () => {
-    const defaultProfile: UserProfile = {
-      uid: crypto.randomUUID(),
-      firstName: 'Demo',
-      lastName: 'User',
-      name: 'Demo User',
-      email: 'demo@example.com',
+  const handleLogout = () => {
+    if (profile) {
+      localStorage.setItem('userProfile', JSON.stringify(profile));
+    }
+    dispatch(updateProfile({
+      uid: '',
+      firstName: '',
+      lastName: '',
+      name: '',
+      email: '',
       phone: '',
       age: 0,
       dateOfBirth: '',
@@ -52,22 +108,23 @@ const Layout: React.FC = () => {
         city: '',
         state: '',
         zipCode: '',
-        country: 'USA'
+        country: '',
       },
       state: '',
       financialInfo: {
         assets: [],
         liabilities: [],
-        netWorth: 0,
-        plaidConnected: false,
+        lastUpdated: new Date().toISOString(),
         totalValue: 0,
-        lastUpdated: new Date().toISOString()
       },
       beneficiaries: [],
       lastUpdated: new Date().toISOString()
-    };
-    dispatch(updateProfile(defaultProfile));
-    localStorage.setItem('userProfile', JSON.stringify(defaultProfile));
+    }));
+    navigate('/dashboard');
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   const navigationItems: NavigationItem[] = [
@@ -83,135 +140,134 @@ const Layout: React.FC = () => {
       icon: '📊',
       description: 'Overview of your estate portfolio'
     },
+    {
+      name: 'Notifications',
+      path: '/notifications',
+      icon: '🔔',
+      description: 'View your notifications and updates'
+    },
+    {
+      name: 'My Documents',
+      path: '/documents',
+      icon: '📄',
+      description: 'Manage all your estate planning documents'
+    },
     { 
       name: 'Assets', 
       path: '/assets', 
-      icon: '🏠',
-      description: 'Manage your properties and investments'
+      icon: '💰',
+      description: 'Manage your assets and property'
     },
     { 
       name: 'Liabilities', 
       path: '/liabilities', 
-      icon: '💳',
-      description: 'Track debts and obligations'
+      icon: '📊',
+      description: 'Track your debts and obligations'
     },
     { 
       name: 'People', 
       path: '/people', 
       icon: '👥',
-      description: 'Manage beneficiaries and contacts'
+      description: 'Manage your contacts, beneficiaries, trustees, and executors'
     },
     { 
-      name: 'Documents', 
-      path: '/documents', 
-      icon: '📋',
-      description: 'Create and manage estate documents'
-    },
-    { 
-      name: 'Profile', 
+      name: 'Nick Singh',
       path: '/profile', 
       icon: '👤',
-      description: 'Personal information and settings'
-    },
-    { 
-      name: 'Notifications', 
-      path: '/notifications', 
-      icon: '🔔',
-      description: 'Important updates and reminders'
+      description: 'View and edit your profile'
     }
   ];
 
-  const handleLogout = () => {
-    // Simple logout - just redirect to dashboard
-    navigate('/dashboard');
-  };
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+  const renderNavigationItem = (item: NavigationItem) => (
+    <Link
+      key={item.path}
+      to={item.path}
+      className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+        location.pathname === item.path
+          ? 'bg-[#1D1F23] text-white'
+          : 'text-[#989AA1] hover:text-white hover:bg-[#1D1F23]'
+      }`}
+    >
+      <span className="mr-3">{item.icon}</span>
+      <span>{item.name}</span>
+    </Link>
+  );
 
   return (
-    <div className="min-h-screen bg-[#000000] text-white">
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-[#101113] shadow-lg">
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center h-16 px-6 border-b border-[#1D1F23]">
-            <Link to="/dashboard" className="flex items-center">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-white font-bold">L</span>
-              </div>
-              <span className="text-xl font-bold text-white">Legacy V2</span>
+    <div className="min-h-screen bg-[#000000] font-['Inter']">
+      {/* Top Navigation */}
+      <div className="fixed top-0 z-50 w-full border-b border-[#1D1F23] bg-[#000000]">
+        <div className="flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-4">
+            <Link to="/dashboard" className="text-xl font-semibold text-white hover:text-blue-500 transition-colors">
+              Legacy
             </Link>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  location.pathname === item.path
-                    ? 'bg-blue-500 text-white'
-                    : 'text-[#989AA1] hover:bg-[#1D1F23] hover:text-white'
-                }`}
-              >
-                <span className="mr-3 text-lg">{item.icon}</span>
-                <div>
-                  <div className="font-medium">{item.name}</div>
-                  <div className="text-xs opacity-75">{item.description}</div>
-                </div>
-              </Link>
-            ))}
-          </nav>
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden text-white"
+            aria-label="Toggle mobile menu"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+            </svg>
+          </button>
 
-          {/* User Profile */}
-          <div className="px-4 py-4 border-t border-[#1D1F23]">
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                <span className="text-white text-sm font-medium">
-                  {profile?.firstName?.[0] || 'D'}
-                </span>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-white">
-                  {profile?.name || 'Demo User'}
-                </div>
-                <div className="text-xs text-[#989AA1]">
-                  {profile?.email || 'demo@example.com'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="ml-64">
-        {/* Header */}
-        <header className="bg-[#101113] border-b border-[#1D1F23] h-16 flex items-center justify-between px-6">
-          <div className="flex items-center">
-            <h1 className="text-xl font-semibold text-white">
-              {navigationItems.find(item => item.path === location.pathname)?.name || 'Legacy V2'}
-            </h1>
-          </div>
-          <div className="flex items-center space-x-4">
+          {/* User section - Always visible on desktop */}
+          <div className="hidden md:flex items-center gap-4">
             <button
               onClick={handleLogout}
-              className="text-[#989AA1] hover:text-white transition-colors"
+              className="text-sm text-[#989AA1] hover:text-white transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+              Sign out
             </button>
           </div>
-        </header>
+        </div>
 
-        {/* Page Content */}
-        <main className="p-6">
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-[#000000] border-b border-[#1D1F23]">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              {navigationItems.map(item => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-sm ${
+                    location.pathname === item.path
+                      ? 'bg-[#1D1F23] text-white'
+                      : 'text-[#989AA1] hover:text-white hover:bg-[#1D1F23]'
+                  }`}
+                >
+                  <span className="mr-3">{item.icon}</span>
+                  {item.name}
+                </Link>
+              ))}
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-3 py-2 text-sm text-[#989AA1] hover:text-white transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex pt-14">
+        {/* Sidebar Navigation */}
+        <div className="hidden md:block fixed w-64 h-full bg-[#000000] border-r border-[#1D1F23] p-4">
+          <nav className="space-y-1">
+            {navigationItems.map(item => renderNavigationItem(item))}
+          </nav>
+        </div>
+
+        {/* Main Content */}
+        <div className="w-full md:ml-64 p-6">
           <Outlet />
-        </main>
+        </div>
       </div>
     </div>
   );

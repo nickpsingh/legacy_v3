@@ -67,7 +67,6 @@ const Dashboard: React.FC = () => {
   const { profile } = useSelector((state: RootState) => state.user);
 
   // Profile initialization is now handled by Layout component
-  // No Auth0 initialization needed
 
   const calculateAssetTotal = (assets: Asset[]): number => {
     return assets.reduce((sum, asset) => sum + (asset.value || 0), 0);
