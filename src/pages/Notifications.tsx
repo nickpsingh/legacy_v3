@@ -1,49 +1,22 @@
-import React from 'react';
-import { useSelector } from 'react-redux';
+import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  timestamp: string;
-  read: boolean;
-}
+import { fetchDocumentsFromDB } from '../features/documents/documentsSlice';
+import { generateNotificationsFromDocuments, getNotificationColor } from '../services/notifications.service';
 
 const Notifications: React.FC = () => {
-  // This will be connected to your notifications state once implemented
-  const notifications: Notification[] = [
-    {
-      id: '1',
-      title: 'Document Updated',
-      message: 'Your living trust document has been successfully updated.',
-      type: 'success',
-      timestamp: new Date().toISOString(),
-      read: false
-    },
-    {
-      id: '2',
-      title: 'Reminder',
-      message: 'Please complete your will document setup.',
-      type: 'info',
-      timestamp: new Date().toISOString(),
-      read: false
-    }
-  ];
+  const dispatch = useDispatch();
+  const { documents } = useSelector((state: RootState) => state.documents);
+  
+  const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
+  
+  useEffect(() => {
+    // @ts-ignore
+    dispatch(fetchDocumentsFromDB(DEMO_USER_UID));
+  }, [dispatch]);
 
-  const getNotificationColor = (type: Notification['type']) => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-500/10 text-green-500';
-      case 'error':
-        return 'bg-red-500/10 text-red-500';
-      case 'warning':
-        return 'bg-yellow-500/10 text-yellow-500';
-      default:
-        return 'bg-blue-500/10 text-blue-500';
-    }
-  };
+  // Generate notifications from actual documents
+  const notifications = documents ? generateNotificationsFromDocuments(documents) : [];
 
   return (
     <div className="space-y-6">
@@ -77,9 +50,16 @@ const Notifications: React.FC = () => {
                   )}
                 </div>
                 <p className="text-[#989AA1]">{notification.message}</p>
-                <p className="text-sm text-[#989AA1] mt-2">
-                  {new Date(notification.timestamp).toLocaleString()}
-                </p>
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-sm text-[#989AA1]">
+                    {new Date(notification.timestamp).toLocaleString()}
+                  </p>
+                  {notification.documentType && (
+                    <span className="text-xs text-blue-400 bg-blue-900/20 px-2 py-1 rounded">
+                      {notification.documentType.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>

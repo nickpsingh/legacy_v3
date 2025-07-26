@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
-import { Liability, addLiability, updateLiability, deleteLiability } from '../features/user/userSlice';
+import { 
+  fetchLiabilitiesFromDB, 
+  addLiabilityToDB, 
+  updateLiabilityInDB, 
+  deleteLiabilityFromDB 
+} from '../features/liabilities/liabilitiesSlice';
+import { Liability } from '../services/liabilities.service';
 import Modal from '../components/Modal';
 import { useSnackbar } from 'notistack';
 import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi';
@@ -41,8 +47,13 @@ const LIABILITY_TYPES = [
 const Liabilities: React.FC = () => {
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
-  const { profile } = useSelector((state: RootState) => state.user);
-  const liabilities = profile?.financialInfo?.liabilities || [];
+  const { liabilities, loading, error } = useSelector((state: RootState) => state.liabilities);
+  const DEMO_USER_ID = 'ec540338-923f-400d-a185-6028c5d5f823'; // John Smith's UUID ID
+
+  // Load liabilities from database when component mounts
+  useEffect(() => {
+    dispatch(fetchLiabilitiesFromDB(DEMO_USER_ID) as any);
+  }, [dispatch]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,7 +118,7 @@ const Liabilities: React.FC = () => {
     if (!liabilityToDelete) return;
 
     try {
-      dispatch(deleteLiability(liabilityToDelete.id));
+      dispatch(deleteLiabilityFromDB(liabilityToDelete.id) as any);
       enqueueSnackbar('Liability deleted successfully', { variant: 'success' });
     } catch (error) {
       console.error('Error deleting liability:', error);
@@ -140,24 +151,25 @@ const Liabilities: React.FC = () => {
         return;
       }
 
-      const liabilityData: Liability = {
-        id: selectedLiability?.id || crypto.randomUUID(),
+      const liabilityData = {
         name: formData.name.trim(),
         type: formData.type,
         amount: Number(amount.toFixed(2)), // Ensure amount is rounded to 2 decimal places
         description: formData.description.trim(),
         interestRate: Number(interestRate.toFixed(2)), // Ensure interest rate is rounded to 2 decimal places
-        lastUpdated: new Date().toISOString()
       };
 
       if (selectedLiability) {
         // For updates, ensure we're using the exact same ID
-        dispatch(updateLiability({
-          ...liabilityData,
-          id: selectedLiability.id
-        }));
+        dispatch(updateLiabilityInDB({
+          liabilityId: selectedLiability.id,
+          updates: liabilityData
+        }) as any);
       } else {
-        dispatch(addLiability(liabilityData));
+        dispatch(addLiabilityToDB({
+          userId: DEMO_USER_ID,
+          liabilityData: liabilityData
+        }) as any);
       }
 
       // Close the dialog and reset form
@@ -258,9 +270,21 @@ const Liabilities: React.FC = () => {
           </div>
         ))}
 
-        {liabilities.length === 0 && (
+        {loading && (
+          <div className="text-center py-8 text-[#989AA1]">
+            <p>Loading liabilities...</p>
+          </div>
+        )}
+
+        {!loading && liabilities.length === 0 && (
           <div className="text-center py-8 text-[#989AA1]">
             <p>No liabilities added yet. Click the "Add Liability" button to get started.</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center py-8 text-red-400">
+            <p>Error loading liabilities: {error}</p>
           </div>
         )}
       </div>
@@ -371,9 +395,9 @@ const Liabilities: React.FC = () => {
             <button
               onClick={handleSubmit}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-              disabled={isSubmitting}
+              disabled={isSubmitting || loading}
             >
-              {isSubmitting ? 'Saving...' : selectedLiability ? 'Save Changes' : 'Add Liability'}
+              {(isSubmitting || loading) ? 'Saving...' : selectedLiability ? 'Save Changes' : 'Add Liability'}
             </button>
           </div>
         </div>

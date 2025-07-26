@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { UserProfile } from '../store/userSlice';
+import { UserProfile } from '../features/user/userSlice';
 
 export interface DocumentData {
   type: 'will' | 'living-trust' | 'living-will' | 'power-of-attorney';

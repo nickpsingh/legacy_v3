@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Person, addPerson } from '../features/people/peopleSlice';
+import { Person, addPersonToDB } from '../features/people/peopleSlice';
 
 interface AddPersonModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface AddPersonModalProps {
 
 const AddPersonModal: React.FC<AddPersonModalProps> = ({ isOpen, onClose, onPersonAdded, defaultRole }) => {
   const dispatch = useDispatch();
+  const DEMO_USER_ID = 'demo-user-123'; // In a real app, this would come from auth
   const [formData, setFormData] = useState<Partial<Person>>({
     firstName: '',
     lastName: '',
@@ -66,10 +67,14 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ isOpen, onClose, onPers
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const action = dispatch(addPerson(formData as Omit<Person, 'id' | 'createdAt' | 'updatedAt'>));
-    if (onPersonAdded && action.payload) {
-      onPersonAdded(action.payload as Person);
-    }
+    dispatch(addPersonToDB({ 
+      userId: DEMO_USER_ID, 
+      personData: formData as Omit<Person, 'id' | 'createdAt' | 'updatedAt'> 
+    }) as any).then((action: any) => {
+      if (onPersonAdded && action.payload) {
+        onPersonAdded(action.payload as Person);
+      }
+    });
     setFormData({
       firstName: '',
       lastName: '',

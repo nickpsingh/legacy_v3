@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
-import { UserProfile, updateProfile } from '../features/user/userSlice';
+import { UserProfile, updateProfile, fetchUserFromDB } from '../features/user/userSlice';
 import { LAYOUT_NAVIGATION_ITEMS, NavigationItem } from '../constants/navigation';
 
 const Layout: React.FC = () => {
@@ -13,40 +13,9 @@ const Layout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Initialize default user profile if none exists
-    if (!profile || (!profile.uid && !profile.name)) {
-      const newProfile: UserProfile = {
-        uid: crypto.randomUUID(),
-        firstName: 'Demo',
-        lastName: 'User',
-        name: 'Demo User',
-        email: 'demo@example.com',
-        phone: '',
-        age: 0,
-        dateOfBirth: '',
-        maritalStatus: 'single',
-        address: {
-          street: '',
-          city: '',
-          state: '',
-          zipCode: '',
-          country: 'USA'
-        },
-        state: '',
-        financialInfo: {
-          assets: [],
-          liabilities: [],
-          netWorth: 0,
-          plaidConnected: false,
-          totalValue: 0,
-          lastUpdated: new Date().toISOString()
-        },
-        beneficiaries: [],
-        lastUpdated: new Date().toISOString()
-      };
-      dispatch(updateProfile(newProfile));
-    }
-  }, [dispatch, profile]);
+    // Load user from database on component mount
+    dispatch(fetchUserFromDB('ec540338-923f-400d-a185-6028c5d5f823') as any);
+  }, [dispatch]);
 
   const handleLogout = () => {
     dispatch(updateProfile({
@@ -124,6 +93,12 @@ const Layout: React.FC = () => {
 
           {/* User section - Always visible on desktop */}
           <div className="hidden md:flex items-center gap-4">
+            <span className="text-sm text-white">
+              {profile?.name || profile?.firstName ? 
+                (profile.name || `${profile.firstName} ${profile.lastName}`.trim()) : 
+                'Loading...'
+              }
+            </span>
             <button
               onClick={handleLogout}
               className="text-sm text-[#989AA1] hover:text-white transition-colors"
@@ -152,6 +127,12 @@ const Layout: React.FC = () => {
                   {item.name}
                 </Link>
               ))}
+              <div className="px-3 py-2 text-sm text-white">
+                {profile?.name || profile?.firstName ? 
+                  (profile.name || `${profile.firstName} ${profile.lastName}`.trim()) : 
+                  'Loading...'
+                }
+              </div>
               <button
                 onClick={handleLogout}
                 className="w-full text-left px-3 py-2 text-sm text-[#989AA1] hover:text-white transition-colors"

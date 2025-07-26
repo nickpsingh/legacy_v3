@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import * as usersService from '../../services/users.service';
 
 export interface Asset {
   id: string;
@@ -88,74 +89,77 @@ interface UserState {
   error: string | null;
 }
 
-const dummyAssets: Asset[] = [
-  {
-    id: '1',
-    name: 'Primary Residence',
-    type: 'real_estate',
-    value: 750000,
-    amount: 750000,
-    description: '4 bedroom house in San Francisco',
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: '2',
-    name: '401(k) Account',
-    type: 'investment',
-    value: 250000,
-    amount: 250000,
-    description: 'Retirement account with Fidelity',
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: '3',
-    name: 'Checking Account',
-    type: 'bank_account',
-    value: 25000,
-    amount: 25000,
-    description: 'Main checking account with Chase',
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: '4',
-    name: 'Tesla Model 3',
-    type: 'vehicle',
-    value: 45000,
-    amount: 45000,
-    description: '2022 Tesla Model 3 Long Range',
-    lastUpdated: new Date().toISOString()
-  }
-];
+const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823'; // John Smith's UUID ID
 
-const dummyLiabilities: Liability[] = [
-  {
-    id: '1',
-    name: 'Mortgage',
-    type: 'mortgage',
-    amount: 500000,
-    description: 'Primary residence mortgage',
-    interestRate: 3.5,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: '2',
-    name: 'Car Loan',
-    type: 'loan',
-    amount: 35000,
-    description: 'Tesla Model 3 auto loan',
-    interestRate: 4.2,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: '3',
-    name: 'Credit Card',
-    type: 'credit_card',
-    amount: 5000,
-    description: 'Chase Sapphire Reserve balance',
-    interestRate: 16.99,
-    lastUpdated: new Date().toISOString()
+// Async thunks for database operations
+export const fetchUserFromDB = createAsyncThunk(
+  'user/fetchUserFromDB',
+  async (uid: string = DEMO_USER_UID) => {
+    console.log('Fetching user from DB with UID:', uid);
+    const result = await usersService.fetchUserByUID(uid);
+    
+    if (!result.success) {
+      console.log('User not found, error:', result.error);
+      console.log('Creating demo user...');
+      
+      // If user doesn't exist, create it
+      const createResult = await usersService.createUser({
+        uid: DEMO_USER_UID,
+        firstName: 'John',
+        lastName: 'Smith',
+        name: 'John Smith',
+        email: 'john.smith@example.com',
+        phone: '(555) 123-4567',
+        age: 35,
+        dateOfBirth: '1988-06-15',
+        maritalStatus: 'married',
+        address: {
+          street: '123 Main St',
+          city: 'San Francisco',
+          state: 'CA',
+          zipCode: '94105',
+          country: 'USA'
+        },
+        state: 'CA'
+      });
+      
+      if (!createResult.success) {
+        console.error('Failed to create user:', createResult.error);
+        throw new Error(`Failed to create user: ${JSON.stringify(createResult.error)}`);
+      }
+      console.log('Created user:', createResult.data);
+      return createResult.data;
+    }
+    
+    console.log('Fetched user:', result.data);
+    return result.data;
   }
-];
+);
+
+export const updateUserInDB = createAsyncThunk(
+  'user/updateUserInDB',
+  async ({ uid = DEMO_USER_UID, updates }: { uid?: string; updates: Partial<UserProfile> }) => {
+    console.log('updateUserInDB called with:', { uid, updates });
+    const result = await usersService.updateUser(uid, updates);
+    if (!result.success || !result.data) {
+      console.error('Update failed:', result.error);
+      throw new Error(`Failed to update user: ${JSON.stringify(result.error)}`);
+    }
+    console.log('Update result:', result.data);
+    return result.data;
+  }
+);
+
+export const createUserInDB = createAsyncThunk(
+  'user/createUserInDB',
+  async (userData: Omit<UserProfile, 'financialInfo' | 'beneficiaries' | 'lastUpdated'>) => {
+    const result = await usersService.createUser(userData);
+    if (!result.success || !result.data) {
+      throw new Error('Failed to create user');
+    }
+    return result.data;
+  }
+);
 
 // Load initial state from localStorage
 const loadState = (): UserState => {
@@ -186,25 +190,25 @@ const loadState = (): UserState => {
 
 const initialState: UserState = {
   profile: {
-    uid: '',
-    firstName: '',
-    lastName: '',
-    name: '',
-    email: '',
-    phone: '',
-    age: 0,
-    dateOfBirth: '',
-    maritalStatus: 'single',
+    uid: DEMO_USER_UID,
+    firstName: 'John',
+    lastName: 'Smith',
+    name: 'John Smith',
+    email: 'john.smith@example.com',
+    phone: '(555) 123-4567',
+    age: 35,
+    dateOfBirth: '1988-06-15',
+    maritalStatus: 'married',
     address: {
-      street: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: ''
+      street: '123 Main St',
+      city: 'San Francisco',
+      state: 'CA',
+      zipCode: '94105',
+      country: 'USA'
     },
-    state: '',
+    state: 'CA',
     financialInfo: {
-      income: 0,
+      income: 150000,
       assets: [],
       liabilities: [],
       netWorth: 0,
@@ -221,7 +225,7 @@ const initialState: UserState = {
 
 const userSlice = createSlice({
   name: 'user',
-  initialState: loadState(),
+  initialState,
   reducers: {
     updateProfile: (state, action: PayloadAction<UserProfile>) => {
       state.profile = action.payload;
@@ -255,7 +259,7 @@ const userSlice = createSlice({
           const updatedBeneficiary = {
             ...existingBeneficiary,
             ...action.payload.beneficiary,
-            type: existingBeneficiary.type, // Preserve the original type
+            type: existingBeneficiary.type,
             lastUpdated: new Date().toISOString()
           };
           state.profile.beneficiaries[index] = updatedBeneficiary as WillBeneficiary | TrustBeneficiary;
@@ -284,60 +288,112 @@ const userSlice = createSlice({
         );
       }
     },
-    addLiability: (state, action: PayloadAction<Liability>) => {
-      if (state.profile?.financialInfo) {
-        state.profile.financialInfo.liabilities.push(action.payload);
-      }
-    },
-    updateLiability: (state, action: PayloadAction<Liability>) => {
-      if (!state.profile?.financialInfo) return;
-
-      // Create a new array with the updated liability
-      const updatedLiabilities = state.profile.financialInfo.liabilities.map(liability => 
-        liability.id === action.payload.id 
-          ? { ...action.payload, lastUpdated: new Date().toISOString() }
-          : liability
-      );
-
-      // Calculate totals
-      const totalAssets = state.profile.financialInfo.assets.reduce(
-        (sum, asset) => sum + Number(asset.value),
-        0
-      );
-      
-      const totalLiabilities = updatedLiabilities.reduce(
-        (sum, liability) => sum + Number(liability.amount),
-        0
-      );
-
-      // Update the entire financial info to ensure state changes are detected
-      state.profile.financialInfo = {
-        ...state.profile.financialInfo,
-        liabilities: updatedLiabilities,
-        netWorth: totalAssets - totalLiabilities,
-        lastUpdated: new Date().toISOString()
-      };
-
-      // Force a state update by updating the profile's lastUpdated
-      state.profile.lastUpdated = new Date().toISOString();
-    },
-    deleteLiability: (state, action: PayloadAction<string>) => {
-      if (state.profile) {
-        state.profile.financialInfo.liabilities = state.profile.financialInfo.liabilities.filter(
-          liability => liability.id !== action.payload
-        );
-        // Update net worth after deleting liability
-        const totalAssets = state.profile.financialInfo.assets.reduce((sum, asset) => sum + asset.value, 0);
-        const totalLiabilities = state.profile.financialInfo.liabilities.reduce((sum, liability) => sum + liability.amount, 0);
-        state.profile.financialInfo.netWorth = totalAssets - totalLiabilities;
-      }
-    },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     }
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch user from database
+      .addCase(fetchUserFromDB.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserFromDB.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload && state.profile) {
+          // Merge database user data with existing financial info and beneficiaries
+          state.profile = {
+            ...state.profile,
+            ...action.payload,
+            uid: action.payload.uid || state.profile.uid,
+            name: `${action.payload.firstName} ${action.payload.lastName}`.trim(),
+            financialInfo: state.profile.financialInfo,
+            beneficiaries: state.profile.beneficiaries
+          };
+        } else if (action.payload) {
+          // Create new profile with default financial info
+          state.profile = {
+            ...action.payload,
+            uid: action.payload.uid || DEMO_USER_UID,
+            name: `${action.payload.firstName} ${action.payload.lastName}`.trim(),
+            financialInfo: {
+              income: 0,
+              assets: [],
+              liabilities: [],
+              netWorth: 0,
+              plaidConnected: false,
+              totalValue: 0,
+              lastUpdated: new Date().toISOString()
+            },
+            beneficiaries: []
+          };
+        }
+        state.error = null;
+      })
+      .addCase(fetchUserFromDB.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch user';
+      })
+      
+      // Update user in database
+      .addCase(updateUserInDB.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateUserInDB.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload && state.profile) {
+          // Merge database updates with existing data
+          state.profile = {
+            ...state.profile,
+            ...action.payload,
+            uid: action.payload.uid || state.profile.uid,
+            name: `${action.payload.firstName} ${action.payload.lastName}`.trim(),
+            financialInfo: state.profile.financialInfo,
+            beneficiaries: state.profile.beneficiaries
+          };
+        }
+        state.error = null;
+      })
+      .addCase(updateUserInDB.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to update user';
+      })
+      
+      // Create user in database
+      .addCase(createUserInDB.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createUserInDB.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload) {
+          state.profile = {
+            ...action.payload,
+            uid: action.payload.uid || DEMO_USER_UID,
+            name: `${action.payload.firstName} ${action.payload.lastName}`.trim(),
+            financialInfo: {
+              income: 0,
+              assets: [],
+              liabilities: [],
+              netWorth: 0,
+              plaidConnected: false,
+              totalValue: 0,
+              lastUpdated: new Date().toISOString()
+            },
+            beneficiaries: []
+          };
+        }
+        state.error = null;
+      })
+      .addCase(createUserInDB.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to create user';
+      });
   }
 });
 
@@ -349,9 +405,6 @@ export const {
   addAsset,
   updateAsset,
   deleteAsset,
-  addLiability,
-  updateLiability,
-  deleteLiability,
   setLoading,
   setError
 } = userSlice.actions;

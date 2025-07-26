@@ -1,59 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../app/store';
+import { RootState } from '../store/store';
 import { Link, useNavigate } from 'react-router-dom';
-import { Asset, Liability, UserProfile, updateProfile } from '../features/user/userSlice';
+import { fetchUserFromDB } from '../features/user/userSlice';
+import { fetchAssetsFromDB } from '../features/assets/assetsSlice';
+import { fetchLiabilitiesFromDB } from '../features/liabilities/liabilitiesSlice';
+import { fetchPeopleFromDB } from '../features/people/peopleSlice';
+import { fetchDocumentsFromDB } from '../features/documents/documentsSlice';
+import DocumentViewer from '../components/DocumentViewer';
+import { generateNotificationsFromDocuments } from '../services/notifications.service';
 import { FiArrowRight } from 'react-icons/fi';
-import type { IconType } from 'react-icons';
-
-interface Notification {
-  id: string;
-  type: 'info' | 'warning' | 'success';
-  message: string;
-  date: string;
-}
-
-const MOCK_NOTIFICATIONS = [
-  {
-    id: '1',
-    type: 'info',
-    message: 'Your will document has been updated',
-    date: '2024-03-10T10:00:00Z'
-  },
-  {
-    id: '2',
-    type: 'success',
-    message: 'Living trust document submitted successfully',
-    date: '2024-03-09T15:30:00Z'
-  },
-  {
-    id: '3',
-    type: 'warning',
-    message: 'Power of attorney document requires review',
-    date: '2024-03-08T09:15:00Z'
-  }
-];
-
-const MOCK_DOCUMENTS = [
-  {
-    id: '1',
-    title: 'Last Will and Testament',
-    status: 'submitted',
-    lastUpdated: '2024-03-10T10:00:00Z'
-  },
-  {
-    id: '2',
-    title: 'Living Trust',
-    status: 'in_progress',
-    lastUpdated: '2024-03-09T15:30:00Z'
-  },
-  {
-    id: '3',
-    title: 'Power of Attorney',
-    status: 'submitted',
-    lastUpdated: '2024-03-08T09:15:00Z'
-  }
-];
 
 // Create a properly typed arrow icon component
 const ArrowIcon = () => {
@@ -65,19 +21,25 @@ const Dashboard: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { profile } = useSelector((state: RootState) => state.user);
+  const { assets } = useSelector((state: RootState) => state.assets);
+  const { liabilities } = useSelector((state: RootState) => state.liabilities);
+  const { documents } = useSelector((state: RootState) => state.documents);
+  const [documentToView, setDocumentToView] = useState<any | null>(null);
 
-  // Profile initialization is now handled by Layout component
+  const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
 
-  const calculateAssetTotal = (assets: Asset[]): number => {
-    return assets.reduce((sum, asset) => sum + (asset.value || 0), 0);
-  };
+  // Load all data from database when component mounts
+  useEffect(() => {
+    dispatch(fetchUserFromDB(DEMO_USER_UID) as any);
+    dispatch(fetchAssetsFromDB(DEMO_USER_UID) as any);
+    dispatch(fetchLiabilitiesFromDB(DEMO_USER_UID) as any);
+    dispatch(fetchPeopleFromDB(DEMO_USER_UID) as any);
+    dispatch(fetchDocumentsFromDB(DEMO_USER_UID) as any);
+  }, [dispatch]);
 
-  const calculateLiabilityTotal = (liabilities: Liability[]): number => {
-    return liabilities.reduce((sum, liability) => sum + (liability.amount || 0), 0);
-  };
-
-  const totalAssets = calculateAssetTotal(profile?.financialInfo?.assets ?? []);
-  const totalLiabilities = calculateLiabilityTotal(profile?.financialInfo?.liabilities ?? []);
+  // Calculate financial summary from database data
+  const totalAssets = [...assets].reduce((sum, asset) => sum + (asset.value || asset.amount || 0), 0);
+  const totalLiabilities = [...liabilities].reduce((sum, liability) => sum + liability.amount, 0);
   const netWorth = totalAssets - totalLiabilities;
 
   const formatDate = (dateString: string): string => {
@@ -95,6 +57,9 @@ const Dashboard: React.FC = () => {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
   };
+
+  // Generate notifications from actual documents
+  const notifications = documents ? generateNotificationsFromDocuments(documents) : [];
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
@@ -116,11 +81,11 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
               <div className="space-y-4">
-                {MOCK_NOTIFICATIONS.map((notification) => (
+                {notifications.slice(0, 3).map((notification) => (
                   <div key={notification.id} className="bg-[#1A1A1A] rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-gray-200">{notification.message}</span>
-                      <span className="text-gray-400 text-sm">{formatDate(notification.date)}</span>
+                      <span className="text-gray-400 text-sm">{formatDate(notification.timestamp)}</span>
                     </div>
                   </div>
                 ))}
@@ -139,21 +104,45 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
               <div className="space-y-4">
-                {MOCK_DOCUMENTS.map((doc) => (
-                  <div key={doc.id} className="bg-[#1A1A1A] rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-200">{doc.title}</span>
-                      <span className={`px-2 py-1 rounded text-sm ${
-                        doc.status === 'submitted' 
-                          ? 'bg-green-900 text-green-200' 
-                          : 'bg-yellow-900 text-yellow-200'
-                      }`}>
-                        {doc.status === 'submitted' ? 'Submitted' : 'In Progress'}
-                      </span>
+                {documents && documents.length > 0 ? (
+                  documents.slice(0, 3).map((doc, index) => (
+                    <div 
+                      key={doc.id || index} 
+                      className="bg-[#1A1A1A] rounded-lg p-4 cursor-pointer hover:bg-[#222] transition-colors"
+                      onClick={() => setDocumentToView(doc)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-gray-200">{doc.title || 'Untitled Document'}</span>
+                        <span className={`px-2 py-1 rounded text-sm ${
+                          doc.status === 'submitted' || doc.status === 'completed'
+                            ? 'bg-green-900 text-green-200' 
+                            : doc.status === 'in_progress'
+                            ? 'bg-blue-900 text-blue-200'
+                            : 'bg-yellow-900 text-yellow-200'
+                        }`}>
+                          {doc.status === 'submitted' ? 'Submitted' : 
+                           doc.status === 'completed' ? 'Completed' :
+                           doc.status === 'in_progress' ? 'In Progress' : 'Draft'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-400">
+                          Last updated {formatDate(doc.updated_at || doc.created_at || new Date().toISOString())}
+                        </p>
+                        <div className="text-xs text-gray-500">
+                          {doc.progress_percentage || 0}% complete
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-400">Last updated {formatDate(doc.lastUpdated)}</p>
+                  ))
+                ) : (
+                  <div className="bg-[#1A1A1A] rounded-lg p-4 text-center">
+                    <p className="text-gray-400 mb-2">No documents yet</p>
+                    <Link to="/documents" className="text-blue-500 hover:text-blue-400 text-sm">
+                      Create your first document →
+                    </Link>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -183,6 +172,13 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Document Viewer Modal */}
+      <DocumentViewer
+        isOpen={!!documentToView}
+        onClose={() => setDocumentToView(null)}
+        document={documentToView}
+      />
     </div>
   );
 };

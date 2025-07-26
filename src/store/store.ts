@@ -2,6 +2,8 @@ import { configureStore } from '@reduxjs/toolkit';
 import documentsReducer from '../features/documents/documentsSlice';
 import userReducer from '../features/user/userSlice';
 import peopleReducer from '../features/people/peopleSlice';
+import assetsReducer from '../features/assets/assetsSlice';
+import liabilitiesReducer from '../features/liabilities/liabilitiesSlice';
 
 // Load state from localStorage
 const loadState = () => {
@@ -33,6 +35,8 @@ export const store = configureStore({
     user: userReducer,
     documents: documentsReducer,
     people: peopleReducer,
+    assets: assetsReducer,
+    liabilities: liabilitiesReducer,
   },
   preloadedState: loadState(),
   middleware: (getDefaultMiddleware) =>

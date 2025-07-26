@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import DocumentSteps from './DocumentSteps';
 import { DocumentType } from '../types/document';
-import { RootState } from '../app/store';
+import { RootState } from '../store/store';
 import Modal from './Modal';
 import { LAYOUT_NAVIGATION_ITEMS } from '../constants/navigation';
 

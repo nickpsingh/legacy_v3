@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
-import { Asset, addAsset, updateAsset, deleteAsset } from '../features/user/userSlice';
+import { Asset } from '../features/user/userSlice';
+import { fetchAssetsFromDB, addAssetToDB, updateAssetInDB, deleteAssetFromDB } from '../features/assets/assetsSlice';
 import Modal from '../components/Modal';
 import { useSnackbar } from 'notistack';
 import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi';
@@ -44,8 +45,11 @@ const DeleteIcon = () => {
 const Assets: React.FC = () => {
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
-  const { profile } = useSelector((state: RootState) => state.user);
-  const assets = profile?.financialInfo?.assets || [];
+  const assetsState = useSelector((state: RootState) => state.assets);
+  const { assets = [], loading = false, error = null } = assetsState || {};
+  
+
+  const DEMO_USER_ID = 'ec540338-923f-400d-a185-6028c5d5f823'; // John Smith's ID
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,13 +64,10 @@ const Assets: React.FC = () => {
     description: ''
   });
 
-  // Load assets from localStorage on component mount
+  // Load assets from database when component mounts
   useEffect(() => {
-    const savedState = localStorage.getItem('estateplannerState');
-    if (!savedState) {
-      enqueueSnackbar('No saved assets found', { variant: 'info' });
-    }
-  }, [enqueueSnackbar]);
+    dispatch(fetchAssetsFromDB(DEMO_USER_ID) as any);
+  }, [dispatch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -103,7 +104,7 @@ const Assets: React.FC = () => {
     if (!assetToDelete) return;
 
     try {
-      dispatch(deleteAsset(assetToDelete.id));
+      await dispatch(deleteAssetFromDB(assetToDelete.id) as any);
       enqueueSnackbar('Asset deleted successfully', { variant: 'success' });
     } catch (error) {
       console.error('Error deleting asset:', error);
@@ -127,21 +128,25 @@ const Assets: React.FC = () => {
         return;
       }
 
-      const assetData: Asset = {
-        id: selectedAsset?.id || crypto.randomUUID(),
-        name: formData.name.trim(),
-        type: formData.type,
-        value: Number(formData.value),
-        amount: Number(formData.amount),
-        description: formData.description.trim(),
-        lastUpdated: new Date().toISOString()
-      };
-
       if (selectedAsset) {
-        dispatch(updateAsset(assetData));
+        const updates = {
+          name: formData.name.trim(),
+          type: formData.type,
+          value: Number(formData.value),
+          amount: Number(formData.amount),
+          description: formData.description.trim()
+        };
+        await dispatch(updateAssetInDB({ assetId: selectedAsset.id, updates }) as any);
         enqueueSnackbar('Asset updated successfully', { variant: 'success' });
       } else {
-        dispatch(addAsset(assetData));
+        const assetData = {
+          name: formData.name.trim(),
+          type: formData.type,
+          value: Number(formData.value),
+          amount: Number(formData.amount),
+          description: formData.description.trim()
+        };
+        await dispatch(addAssetToDB({ userId: DEMO_USER_ID, assetData }) as any);
         enqueueSnackbar('Asset added successfully', { variant: 'success' });
       }
       
@@ -165,6 +170,20 @@ const Assets: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Loading indicator */}
+      {loading && (
+        <div className="text-center py-4">
+          <div className="text-gray-400">Loading assets...</div>
+        </div>
+      )}
+      
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-900 text-red-300 p-4 rounded-lg mb-6">
+          Error: {error}
+        </div>
+      )}
+      
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-white">Assets</h1>
         <button 
@@ -186,8 +205,14 @@ const Assets: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid gap-4">
-        {assets.map((asset: Asset) => (
+      <div className="grid gap-4">        
+        {assets && assets.length === 0 && !loading && (
+          <div className="text-center py-8">
+            <div className="text-gray-400">No assets found. Click "Add Asset" to get started.</div>
+          </div>
+        )}
+        
+        {assets && assets.map((asset: Asset) => (
           <div key={asset.id} className="bg-[#101113] p-4 rounded-lg border border-[#1D1F23]">
             <div className="flex justify-between items-start">
               <div>

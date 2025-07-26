@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateProfile, Asset } from '../features/user/userSlice';
-import { RootState } from '../app/store';
+import { RootState } from '../store/store';
 
 const AssetConnection: React.FC = () => {
   const dispatch = useDispatch();

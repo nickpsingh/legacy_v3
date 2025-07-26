@@ -1,11 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
-import { Person, addPerson, updatePerson, deletePerson } from '../features/people/peopleSlice';
+import { 
+  Person, 
+  fetchPeopleFromDB, 
+  addPersonToDB, 
+  updatePersonInDB, 
+  deletePersonFromDB 
+} from '../features/people/peopleSlice';
 
 const People: React.FC = () => {
   const dispatch = useDispatch();
-  const { people } = useSelector((state: RootState) => state.people);
+  const { people, loading, error } = useSelector((state: RootState) => state.people);
+  const DEMO_USER_ID = 'ec540338-923f-400d-a185-6028c5d5f823'; // John Smith's UUID ID
+
+  // Load people from database when component mounts
+  useEffect(() => {
+    dispatch(fetchPeopleFromDB(DEMO_USER_ID) as any);
+  }, [dispatch]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [formData, setFormData] = useState<Partial<Person>>({
@@ -64,9 +76,12 @@ const People: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingPerson) {
-      dispatch(updatePerson({ id: editingPerson.id, updates: formData }));
+      dispatch(updatePersonInDB({ personId: editingPerson.id, updates: formData }) as any);
     } else {
-      dispatch(addPerson(formData as Omit<Person, 'id' | 'createdAt' | 'updatedAt'>));
+      dispatch(addPersonToDB({ 
+        userId: DEMO_USER_ID, 
+        personData: formData as Omit<Person, 'id' | 'createdAt' | 'updatedAt'> 
+      }) as any);
     }
     setFormData({
       firstName: '',
@@ -105,20 +120,36 @@ const People: React.FC = () => {
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this person?')) {
-      dispatch(deletePerson(id));
+      dispatch(deletePersonFromDB(id) as any);
     }
   };
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      {/* Loading indicator */}
+      {loading && (
+        <div className="text-center py-4">
+          <div className="text-gray-400">Loading people...</div>
+        </div>
+      )}
+      
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-900 text-red-300 p-4 rounded-lg mb-6">
+          Error: {error}
+        </div>
+      )}
+      
+              <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-white">People</h1>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          {showAddForm ? 'Cancel' : '+ Add Person'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            {showAddForm ? 'Cancel' : '+ Add Person'}
+          </button>
+        </div>
       </div>
 
       {showAddForm && (

@@ -368,6 +368,7 @@ const TrustCreator: React.FC = () => {
   };
 
   const handleStepClick = (step: number) => {
+    setCurrentStep(step);
     setDocument(prev => ({
       ...prev,
       currentStep: step
@@ -672,7 +673,7 @@ const TrustCreator: React.FC = () => {
         <div className="flex h-screen">
           <DocumentSteps
             type="living-trust"
-            currentStep={document.currentStep}
+            currentStep={currentStep}
             onStepClick={handleStepClick}
           />
           {renderStep()}

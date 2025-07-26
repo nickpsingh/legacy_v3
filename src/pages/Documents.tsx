@@ -1,88 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { documentService, DocumentData } from '../services/document.service';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../store/store';
+import { fetchDocumentsFromDB, deleteDocumentFromDB } from '../features/documents/documentsSlice';
 import ConfirmationModal from '../components/ConfirmationModal';
+import DocumentViewer from '../components/DocumentViewer';
 import { useSnackbar } from 'notistack';
-
-interface Document extends DocumentData {
-  id: string;
-  title: string;
-  progress?: number;
-}
 
 const Documents: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<any | null>(null);
+  const [documentToView, setDocumentToView] = useState<any | null>(null);
+
+  // Get documents from Redux state
+  const { documents, loading, error } = useSelector((state: RootState) => state.documents);
+
+  const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
 
   useEffect(() => {
-    loadDocuments();
-  }, []);
+    dispatch(fetchDocumentsFromDB(DEMO_USER_UID) as any);
+  }, [dispatch]);
 
-  const loadDocuments = async () => {
-    try {
-      const drafts = await documentService.getAllDrafts();
-      const formattedDocs = drafts.map(doc => ({
-        ...doc,
-        id: doc.metadata.documentId,
-        title: documentService.getDocumentTitle(doc.type),
-        progress: calculateProgress(doc)
-      }));
-      setDocuments(formattedDocs);
-    } catch (error) {
-      console.error('Error loading documents:', error);
-    }
+  const handleView = (doc: any) => {
+    setDocumentToView(doc);
   };
 
-  const calculateProgress = (doc: DocumentData): number => {
-    // Simple progress calculation based on content completeness
-    if (!doc.content) return 0;
-    const totalFields = Object.keys(doc.content).length;
-    const completedFields = Object.values(doc.content).filter(value => value !== undefined && value !== '').length;
-    return Math.round((completedFields / totalFields) * 100);
-  };
-
-  const handleView = async (doc: Document) => {
-    try {
-      const blob = await documentService.generatePDF(doc);
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error viewing document:', error);
-    }
-  };
-
-  const handleEdit = (doc: Document) => {
+  const handleEdit = (doc: any) => {
     // Map document types to their correct edit routes
-    const routeMap = {
+    const routeMap: { [key: string]: string } = {
       'will': '/will/create',
       'living-trust': '/trust/create',
       'power-of-attorney': '/poa/create',
       'living-will': '/living-will/create'
     };
-    navigate(`${routeMap[doc.type]}?id=${doc.id}`);
+    navigate(`${routeMap[doc.document_type]}?id=${doc.id}`);
   };
 
-  const handleDownload = async (doc: Document) => {
+  const handleDownload = async (doc: any) => {
     try {
-      const blob = await documentService.generatePDF(doc);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${doc.title}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // PDF download would go here
+      enqueueSnackbar('PDF download not implemented yet', { variant: 'info' });
     } catch (error) {
       console.error('Error downloading document:', error);
     }
   };
 
-  const handleDelete = async (doc: Document) => {
+  const handleDelete = async (doc: any) => {
     setDocumentToDelete(doc);
   };
 
@@ -90,8 +56,7 @@ const Documents: React.FC = () => {
     if (!documentToDelete) return;
 
     try {
-      await documentService.deleteDraft(documentToDelete.id);
-      setDocuments(documents.filter(doc => doc.id !== documentToDelete.id));
+      await dispatch(deleteDocumentFromDB(documentToDelete.id) as any);
       enqueueSnackbar('Document deleted successfully', { variant: 'success' });
     } catch (error) {
       console.error('Error deleting document:', error);
@@ -101,7 +66,7 @@ const Documents: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: DocumentData['metadata']['status']) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft':
         return 'bg-yellow-500';
@@ -109,13 +74,15 @@ const Documents: React.FC = () => {
         return 'bg-green-500';
       case 'submitted':
         return 'bg-purple-500';
+      case 'in_progress':
+        return 'bg-blue-500';
       default:
         return 'bg-gray-500';
     }
   };
 
-  const getStatusDisplay = (status: DocumentData['metadata']['status']): string => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
+  const getStatusDisplay = (status: string): string => {
+    return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
   };
 
   const documentTypes = [
@@ -165,6 +132,31 @@ const Documents: React.FC = () => {
       });
     }
   };
+
+  const calculateProgress = (doc: any): number => {
+    // Use the progress_percentage from the database, which is calculated by the document creators
+    return doc.progress_percentage || 0;
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center py-12">
+          <div className="text-2xl text-white">Loading documents...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center py-12">
+          <div className="text-2xl text-red-500">Error loading documents: {error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -216,28 +208,26 @@ const Documents: React.FC = () => {
                 <td className="px-6 py-4">
                   <div>
                     <div className="text-white font-medium">{doc.title}</div>
-                    {doc.progress !== undefined && (
-                      <div className="mt-1 w-32">
-                        <div className="w-full bg-[#1D1F23] rounded-full h-1">
-                          <div
-                            className="bg-blue-500 h-1 rounded-full"
-                            style={{ width: `${doc.progress}%` }}
-                          />
-                        </div>
+                    <div className="mt-1 w-32">
+                      <div className="w-full bg-[#1D1F23] rounded-full h-1">
+                        <div
+                          className="bg-blue-500 h-1 rounded-full"
+                          style={{ width: `${calculateProgress(doc)}%` }}
+                        />
                       </div>
-                    )}
+                    </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-[#989AA1]">{doc.type}</td>
+                <td className="px-6 py-4 text-[#989AA1]">{doc.document_type}</td>
                 <td className="px-6 py-4">
                   <span className="inline-flex items-center">
-                    <span className={`w-2 h-2 rounded-full ${getStatusColor(doc.metadata.status)} mr-2`} />
-                    <span className="text-[#989AA1]">{getStatusDisplay(doc.metadata.status)}</span>
+                    <span className={`w-2 h-2 rounded-full ${getStatusColor(doc.status)} mr-2`} />
+                    <span className="text-[#989AA1]">{getStatusDisplay(doc.status)}</span>
                   </span>
                 </td>
                 <td className="px-6 py-4 text-[#989AA1]">
-                  <span title={new Date(doc.metadata.updatedAt).toLocaleString()}>
-                    {formatDate(doc.metadata.updatedAt)}
+                  <span title={new Date(doc.updated_at || doc.created_at || new Date().toISOString()).toLocaleString()}>
+                    {formatDate(doc.updated_at || doc.created_at || new Date().toISOString())}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
@@ -287,6 +277,21 @@ const Documents: React.FC = () => {
         confirmText="Delete"
         cancelText="Cancel"
       />
+
+      {/* Document Viewer Modal */}
+      <DocumentViewer
+        isOpen={!!documentToView}
+        onClose={() => setDocumentToView(null)}
+        document={documentToView}
+      />
+
+      {/* Click outside to close create menu */}
+      {isCreateMenuOpen && (
+        <div 
+          className="fixed inset-0 z-5"
+          onClick={() => setIsCreateMenuOpen(false)}
+        />
+      )}
     </div>
   );
 };

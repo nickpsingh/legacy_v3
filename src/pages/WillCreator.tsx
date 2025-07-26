@@ -4,12 +4,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { RootState } from '../store/store';
 import { UserProfile, Address, Asset, addAsset } from '../features/user/userSlice';
 import { Person } from '../features/people/peopleSlice';
-import DocumentSteps from '../components/DocumentSteps';
+import { fetchAssetsFromDB } from '../features/assets/assetsSlice';
+import { createDocumentInDB, updateDocumentInDB, submitDocumentToDB } from '../features/documents/documentsSlice';
 import DocumentLayout from '../components/DocumentLayout';
 import Select from '../components/Select';
 import AddPersonModal from '../components/AddPersonModal';
-import { documentService } from '../services/document.service';
-import { DocumentData, DocumentType } from '../types/document';
 import { useSnackbar } from 'notistack';
 import Modal from '../components/Modal';
 import { FiInfo, FiPlus, FiCheck } from 'react-icons/fi';
@@ -102,7 +101,10 @@ const WillCreator: React.FC = () => {
   
   const profile = useSelector((state: RootState) => state.user.profile) as UserProfile | null;
   const { people } = useSelector((state: RootState) => state.people);
-  const userAssets = profile?.financialInfo?.assets || [];
+  const { assets } = useSelector((state: RootState) => state.assets);
+  const userAssets = assets || [];
+
+  const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
   
   const [currentStep, setCurrentStep] = useState(0);
   const [documentId, setDocumentId] = useState<string | null>(existingDocumentId);
@@ -128,25 +130,17 @@ const WillCreator: React.FC = () => {
     description: ''
   });
 
+  // Fetch assets from database on component mount
+  useEffect(() => {
+    dispatch(fetchAssetsFromDB(DEMO_USER_UID) as any);
+  }, [dispatch]);
+
   useEffect(() => {
     const loadExistingDocument = async () => {
       if (existingDocumentId) {
-        try {
-          const doc = await documentService.getDraft(existingDocumentId);
-          if (doc) {
-            setCurrentStep(0);
-            setExecutor(doc.content.executors[0] || null);
-            setAlternateExecutor(doc.content.executors[1] || null);
-            setBeneficiaries(doc.content.beneficiaries || []);
-            setSelectedAssets(doc.content.assets || []);
-            setSpecialRequests(doc.content.specialRequests || '');
-            setDocumentId(doc.metadata.documentId);
-            setDocumentStatus(doc.metadata.status);
-          }
-        } catch (error) {
-          console.error('Error loading document:', error);
-          enqueueSnackbar('Failed to load document', { variant: 'error' });
-        }
+        // For now, we'll handle this through URL params or Redux state
+        // In a full implementation, you'd dispatch a fetch action for the specific document
+        enqueueSnackbar('Document editing from URL not implemented yet', { variant: 'info' });
       } else {
         // Try to load from localStorage
         const savedProgress = localStorage.getItem('willCreatorProgress');
@@ -436,6 +430,21 @@ const WillCreator: React.FC = () => {
     });
   };
 
+  const calculateProgress = (): number => {
+    const totalSteps = steps.length;
+    const completedSteps = Math.min(currentStep + 1, totalSteps);
+    return Math.round((completedSteps / totalSteps) * 100);
+  };
+
+  const getDocumentStatus = (): 'draft' | 'in_progress' => {
+    // If no data has been entered, it's a draft
+    if (!executor && beneficiaries.length === 0 && selectedAssets.length === 0) {
+      return 'draft';
+    }
+    // If some progress has been made, it's in progress
+    return 'in_progress';
+  };
+
   const handleSave = async () => {
     if (!profile) {
       enqueueSnackbar('Please log in to save your progress', { variant: 'error' });
@@ -443,19 +452,14 @@ const WillCreator: React.FC = () => {
     }
 
     try {
-      let existingDoc = null;
-      if (documentId) {
-        existingDoc = await documentService.getDraft(documentId);
-      }
-
-      const willData: WillData = {
-        type: 'will',
-        metadata: {
-          createdAt: existingDoc?.metadata.createdAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: 'draft',
-          documentId: documentId || `will-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-        },
+      const progress = calculateProgress();
+      const status = getDocumentStatus();
+      
+      const documentData = {
+        user_id: DEMO_USER_UID,
+        document_type: 'will' as const,
+        title: `${profile.firstName} ${profile.lastName} - Last Will and Testament`,
+        status,
         content: {
           personalInfo: {
             firstName: profile.firstName,
@@ -471,12 +475,27 @@ const WillCreator: React.FC = () => {
           beneficiaries,
           assets: selectedAssets,
           specialRequests: specialRequests || ''
-        }
+        },
+        current_step: currentStep,
+        total_steps: steps.length,
+        progress_percentage: progress
       };
 
-      await documentService.saveDocumentDraft(willData);
+      if (documentId) {
+        // Update existing document
+        await dispatch(updateDocumentInDB({ 
+          documentId, 
+          updates: documentData 
+        }) as any);
+      } else {
+        // Create new document
+        const result = await dispatch(createDocumentInDB(documentData) as any);
+        if (result.payload?.id) {
+          setDocumentId(result.payload.id);
+        }
+      }
       
-      // Save progress with all form data
+      // Save progress in localStorage for recovery
       localStorage.setItem('willCreatorProgress', JSON.stringify({
         currentStep,
         executor,
@@ -484,11 +503,8 @@ const WillCreator: React.FC = () => {
         beneficiaries,
         selectedAssets,
         specialRequests,
-        documentId: willData.metadata.documentId
+        documentId
       }));
-
-      // Store the documentId for future saves
-      setDocumentId(willData.metadata.documentId);
       
       enqueueSnackbar('Progress saved successfully', { variant: 'success' });
       setShowSaveModal(true);
@@ -551,15 +567,18 @@ const WillCreator: React.FC = () => {
       return;
     }
 
+    if (!documentId) {
+      enqueueSnackbar('Please save your progress first', { variant: 'error' });
+      return;
+    }
+
     try {
-      const willData: WillData = {
-        type: 'will',
-        metadata: {
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: 'submitted',
-          documentId: documentId || `will-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-        },
+      // First save with 100% completion and submitted status
+      const documentData = {
+        user_id: DEMO_USER_UID,
+        document_type: 'will' as const,
+        title: `${profile.firstName} ${profile.lastName} - Last Will and Testament`,
+        status: 'submitted' as const,
         content: {
           personalInfo: {
             firstName: profile.firstName,
@@ -575,19 +594,28 @@ const WillCreator: React.FC = () => {
           beneficiaries,
           assets: selectedAssets,
           specialRequests: specialRequests || ''
-        }
+        },
+        current_step: steps.length - 1,
+        total_steps: steps.length,
+        progress_percentage: 100
       };
 
-      const result = await documentService.submitDocument(willData);
+      // Update the document with submitted status
+      await dispatch(updateDocumentInDB({ 
+        documentId, 
+        updates: documentData 
+      }) as any);
+
+      // Submit the document
+      await dispatch(submitDocumentToDB({ 
+        documentId, 
+        userId: DEMO_USER_UID 
+      }) as any);
       
-      if (result.success) {
-        setDocumentStatus('submitted');
-        enqueueSnackbar('Will submitted successfully', { variant: 'success' });
-        localStorage.removeItem('willCreatorProgress');
-        navigate('/documents');
-      } else {
-        throw new Error(result.message);
-      }
+      setDocumentStatus('submitted');
+      enqueueSnackbar('Will submitted successfully', { variant: 'success' });
+      localStorage.removeItem('willCreatorProgress');
+      navigate('/documents');
     } catch (error) {
       console.error('Error submitting will:', error);
       enqueueSnackbar('Failed to submit will', { variant: 'error' });

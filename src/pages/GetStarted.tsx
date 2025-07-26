@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { updateProfile, UserProfile, Asset, Liability } from '../store/userSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../store/store';
+import { updateProfile, UserProfile, Asset } from '../features/user/userSlice';
+import { Liability } from '../services/liabilities.service';
+import { fetchAssetsFromDB } from '../features/assets/assetsSlice';
+import { fetchLiabilitiesFromDB } from '../features/liabilities/liabilitiesSlice';
 
 interface Step {
   id: string;
@@ -92,7 +96,20 @@ const assetTypes = [
 const GetStarted: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { profile } = useSelector((state: RootState) => state.user);
+  const { assets } = useSelector((state: RootState) => state.assets);
+  const { liabilities } = useSelector((state: RootState) => state.liabilities);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isReviewMode, setIsReviewMode] = useState(false);
+
+  // Fetch assets and liabilities when component mounts
+  useEffect(() => {
+    const DEMO_USER_UID = 'demo-user-123';
+    // @ts-ignore
+    dispatch(fetchAssetsFromDB(DEMO_USER_UID));
+    // @ts-ignore
+    dispatch(fetchLiabilitiesFromDB(DEMO_USER_UID));
+  }, [dispatch]);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -173,22 +190,26 @@ const GetStarted: React.FC = () => {
   };
 
   const handleSubmit = () => {
-    const { selectedServices, selectedAssetTypes, connectPlaid, financialInfo, ...profileFields } = formData;
     const profileData: UserProfile = {
-      ...profileFields,
-      age: calculateAge(formData.dateOfBirth),
+      uid: crypto.randomUUID(),
       firstName: formData.firstName,
       lastName: formData.lastName,
+      name: `${formData.firstName} ${formData.lastName}`.trim(),
       email: formData.email,
       phone: formData.phone,
+      age: calculateAge(formData.dateOfBirth),
+      dateOfBirth: formData.dateOfBirth,
       maritalStatus: formData.maritalStatus,
       address: formData.address,
+      state: formData.address.state,
       financialInfo: {
         assets: [],
         liabilities: [],
         totalValue: 0,
         lastUpdated: new Date().toISOString()
-      }
+      },
+      beneficiaries: [],
+      lastUpdated: new Date().toISOString()
     };
     dispatch(updateProfile(profileData));
     navigate('/dashboard');
@@ -220,16 +241,139 @@ const GetStarted: React.FC = () => {
     }
   };
 
+  const renderReviewContent = () => {
+    if (!profile) return null;
+
+    return (
+      <div className="space-y-8">
+        {/* Personal Information */}
+        <div className="bg-[#101113] p-6 rounded-lg border border-[#1D1F23]">
+          <h3 className="text-white font-medium mb-4">Personal Information</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-[#989AA1]">Name:</span>
+              <span className="text-white ml-2">{profile.firstName} {profile.lastName}</span>
+            </div>
+            <div>
+              <span className="text-[#989AA1]">Email:</span>
+              <span className="text-white ml-2">{profile.email}</span>
+            </div>
+            <div>
+              <span className="text-[#989AA1]">Phone:</span>
+              <span className="text-white ml-2">{profile.phone}</span>
+            </div>
+            <div>
+              <span className="text-[#989AA1]">Marital Status:</span>
+              <span className="text-white ml-2 capitalize">{profile.maritalStatus}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Address Information */}
+        {profile.address && (
+          <div className="bg-[#101113] p-6 rounded-lg border border-[#1D1F23]">
+            <h3 className="text-white font-medium mb-4">Address</h3>
+            <div className="text-sm">
+              <div className="text-white">
+                {profile.address.street}<br />
+                {profile.address.city}, {profile.address.state} {profile.address.zipCode}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Financial Overview */}
+        <div className="bg-[#101113] p-6 rounded-lg border border-[#1D1F23]">
+          <h3 className="text-white font-medium mb-4">Financial Overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-[#0A0B0D] rounded-lg">
+              <div className="text-2xl font-bold text-green-400">
+                {assets?.length || 0}
+              </div>
+              <div className="text-sm text-[#989AA1]">Assets</div>
+            </div>
+            <div className="text-center p-4 bg-[#0A0B0D] rounded-lg">
+              <div className="text-2xl font-bold text-red-400">
+                {liabilities?.length || 0}
+              </div>
+              <div className="text-sm text-[#989AA1]">Liabilities</div>
+            </div>
+            <div className="text-center p-4 bg-[#0A0B0D] rounded-lg">
+              <div className="text-2xl font-bold text-blue-400">
+                ${((assets?.reduce((total, asset) => total + (asset.value || 0), 0) || 0) - 
+                   (liabilities?.reduce((total, liability) => total + (liability.amount || 0), 0) || 0)).toLocaleString()}
+              </div>
+              <div className="text-sm text-[#989AA1]">Net Worth</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-between">
+          <button
+            onClick={() => setIsReviewMode(false)}
+            className="px-4 py-2 text-gray-400 hover:text-white"
+          >
+            Back
+          </button>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Continue to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
         return (
-          <div className="text-center">
-            <div className="text-4xl mb-4">🌟</div>
-            <p className="text-[#989AA1] max-w-md mx-auto">
-              Welcome to your legacy journey. We'll help you create a comprehensive estate plan
-              that protects your family's future and preserves your wishes.
-            </p>
+          <div className="space-y-6">
+            <div className="text-left">
+              <p className="text-[#989AA1] text-base">
+                We'll help you create a comprehensive estate plan that protects your family's future and preserves your wishes.
+              </p>
+            </div>
+            
+            {/* Show different CTAs based on user data */}
+            {profile && profile.firstName ? (
+              <div className="mt-8 space-y-4">
+                <div className="p-6 bg-[#101113] rounded-lg border border-[#1D1F23]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-[#989AA1]">
+                        Welcome back, {profile.firstName}. You can review your information here. Navigate to the appropriate sections to make any changes.
+                      </p>
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => setIsReviewMode(true)}
+                        className="px-3 py-1 text-xs border border-blue-500 text-blue-500 rounded hover:bg-blue-500 hover:text-white transition-colors"
+                      >
+                        Review
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-8">
+                <div className="p-6 bg-[#101113] rounded-lg border border-[#1D1F23]">
+                  <h3 className="text-white font-medium mb-2">Ready to get started?</h3>
+                  <p className="text-sm text-[#989AA1] mb-4">
+                    Complete our onboarding process to create your personalized estate plan.
+                  </p>
+                  <button
+                    onClick={handleNext}
+                    className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Continue Setup
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         );
       case 1:
@@ -462,38 +606,53 @@ const GetStarted: React.FC = () => {
   return (
     <div className="min-h-screen bg-black text-white p-8">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-8">
-          <div className="h-2 bg-gray-700 rounded-full">
-            <div
-              className="h-full bg-blue-500 rounded-full transition-all duration-300"
-              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-            />
+        {!isReviewMode && (
+          <div className="mb-8">
+            <div className="h-2 bg-gray-700 rounded-full">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="space-y-6">
-          <h1 className="text-3xl font-bold">{steps[currentStep].title}</h1>
-          <p className="text-gray-400">{steps[currentStep].description}</p>
+          {isReviewMode ? (
+            <>
+              <h1 className="text-3xl font-bold">Review Your Information</h1>
+              <p className="text-gray-400">Review your saved profile information and selections.</p>
+              {renderReviewContent()}
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold">{steps[currentStep].title}</h1>
+              <p className="text-gray-400">{steps[currentStep].description}</p>
 
-          <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-            {renderStepContent()}
-          </form>
+              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                {renderStepContent()}
+              </form>
 
-          <div className="flex justify-between mt-8">
-            <button
-              onClick={handleBack}
-              disabled={currentStep === 0}
-              className="px-4 py-2 text-gray-400 hover:text-white disabled:opacity-50"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleNext}
-              className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
-            >
-              {currentStep === steps.length - 1 ? 'Complete' : 'Next'}
-            </button>
-          </div>
+              {/* Only show navigation for steps after welcome if user doesn't have existing data */}
+              {!(currentStep === 0 && profile && profile.firstName) && (
+                <div className="flex justify-between mt-8">
+                  <button
+                    onClick={handleBack}
+                    disabled={currentStep === 0}
+                    className="px-4 py-2 text-gray-400 hover:text-white disabled:opacity-50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
+                  >
+                    {currentStep === steps.length - 1 ? 'Complete' : 'Next'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
