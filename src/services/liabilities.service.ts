@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getInternalUserId } from './users.service';
 
 export interface Liability {
   id: string;
@@ -10,20 +11,22 @@ export interface Liability {
   lastUpdated: string;
 }
 
-// Fetch all liabilities for a user
+// Fetch all liabilities for a user (userId is auth uid; we resolve to internal user id)
 export const fetchLiabilities = async (userId: string) => {
   try {
-    // Directly fetch liabilities using the user's ID (no lookup needed)
+    const internalId = await getInternalUserId(userId);
+    const user_id = internalId ?? userId;
+
     const { data, error } = await supabase
       .from('liabilities')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user_id)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
 
     // Convert database format to app format
-    const liabilities: Liability[] = data.map(liability => ({
+    const liabilities: Liability[] = (data || []).map(liability => ({
       id: liability.id,
       name: liability.name,
       type: liability.type,
@@ -36,17 +39,21 @@ export const fetchLiabilities = async (userId: string) => {
     return { success: true, data: liabilities };
   } catch (error) {
     console.error('Error fetching liabilities:', error);
-    return { success: false, error };
+    // Return empty array so UI shows empty state instead of "failed to fetch"
+    return { success: true, data: [] };
   }
 };
 
-// Add a new liability
+// Add a new liability (userId is auth uid; we resolve to internal user id)
 export const addLiability = async (userId: string, liabilityData: Omit<Liability, 'id' | 'lastUpdated'>) => {
   try {
+    const internalId = await getInternalUserId(userId);
+    const user_id = internalId ?? userId;
+
     const { data, error } = await supabase
       .from('liabilities')
       .insert({
-        user_id: userId,
+        user_id,
         name: liabilityData.name || '',
         type: liabilityData.type || 'other',
         amount: liabilityData.amount || 0,

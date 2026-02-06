@@ -105,7 +105,8 @@ const WillCreator: React.FC = () => {
   const userAssets = assets || [];
 
   const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
-  
+  const userId = profile?.id ?? DEMO_USER_UID;
+
   const [currentStep, setCurrentStep] = useState(0);
   const [documentId, setDocumentId] = useState<string | null>(existingDocumentId);
   const [documentStatus, setDocumentStatus] = useState<'draft' | 'completed' | 'submitted'>('draft');
@@ -130,10 +131,10 @@ const WillCreator: React.FC = () => {
     description: ''
   });
 
-  // Fetch assets from database on component mount
+  // Fetch assets when we have a user id (profile.id after user load, or demo uid)
   useEffect(() => {
-    dispatch(fetchAssetsFromDB(DEMO_USER_UID) as any);
-  }, [dispatch]);
+    dispatch(fetchAssetsFromDB(userId) as any);
+  }, [dispatch, userId]);
 
   useEffect(() => {
     const loadExistingDocument = async () => {

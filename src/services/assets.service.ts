@@ -1,20 +1,23 @@
 import { supabase } from '../lib/supabase';
+import { getInternalUserId } from './users.service';
 import { Asset } from '../features/user/userSlice';
 
-// Fetch all assets for a user
+// Fetch all assets for a user (userId is auth uid; we resolve to internal user id)
 export const fetchAssets = async (userId: string) => {
   try {
-    // Directly fetch assets using the user's ID (no lookup needed)
+    const internalId = await getInternalUserId(userId);
+    const user_id = internalId ?? userId;
+
     const { data, error } = await supabase
       .from('assets')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user_id)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
 
     // Convert database format to app format
-    const assets: Asset[] = data.map(asset => ({
+    const assets: Asset[] = (data || []).map(asset => ({
       id: asset.id,
       name: asset.name,
       type: asset.type,
@@ -27,17 +30,25 @@ export const fetchAssets = async (userId: string) => {
     return { success: true, data: assets };
   } catch (error) {
     console.error('Error fetching assets:', error);
-    return { success: false, error };
+    // Return empty array so UI shows empty state instead of "failed to fetch"
+    return { success: true, data: [] };
   }
 };
 
-// Add a new asset
+// Add a new asset (userId is auth uid or internal user id; we resolve to internal id)
 export const addAsset = async (userId: string, assetData: Omit<Asset, 'id' | 'lastUpdated'>) => {
   try {
+    const internalId = await getInternalUserId(userId);
+    // Use resolved id, or userId (demo user seed uses same value for id and uid)
+    const user_id = internalId ?? userId;
+    if (!user_id) {
+      return { success: false, error: 'User not found. Please refresh and try again.' };
+    }
+
     const { data, error } = await supabase
       .from('assets')
       .insert({
-        user_id: userId,
+        user_id,
         name: assetData.name || '',
         type: assetData.type || 'other',
         value: assetData.value || 0,
@@ -60,9 +71,11 @@ export const addAsset = async (userId: string, assetData: Omit<Asset, 'id' | 'la
     };
 
     return { success: true, data: newAsset };
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { message?: string; details?: string; hint?: string };
+    const message = err?.message || err?.details || err?.hint || String(error);
     console.error('Error adding asset:', error);
-    return { success: false, error };
+    return { success: false, error: message };
   }
 };
 

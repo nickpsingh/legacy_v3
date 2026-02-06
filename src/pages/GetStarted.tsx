@@ -102,14 +102,14 @@ const GetStarted: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isReviewMode, setIsReviewMode] = useState(false);
 
-  // Fetch assets and liabilities when component mounts
+  const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
+  const userId = profile?.id ?? DEMO_USER_UID;
+
+  // Fetch assets and liabilities when we have a user id
   useEffect(() => {
-    const DEMO_USER_UID = 'demo-user-123';
-    // @ts-ignore
-    dispatch(fetchAssetsFromDB(DEMO_USER_UID));
-    // @ts-ignore
-    dispatch(fetchLiabilitiesFromDB(DEMO_USER_UID));
-  }, [dispatch]);
+    dispatch(fetchAssetsFromDB(userId) as any);
+    dispatch(fetchLiabilitiesFromDB(userId) as any);
+  }, [dispatch, userId]);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',

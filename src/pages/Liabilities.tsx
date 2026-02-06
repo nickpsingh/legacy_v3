@@ -44,16 +44,20 @@ const LIABILITY_TYPES = [
   { value: 'other', label: 'Other' }
 ];
 
+const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
+
 const Liabilities: React.FC = () => {
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
+  const { profile } = useSelector((state: RootState) => state.user);
   const { liabilities, loading, error } = useSelector((state: RootState) => state.liabilities);
-  const DEMO_USER_ID = 'ec540338-923f-400d-a185-6028c5d5f823'; // John Smith's UUID ID
 
-  // Load liabilities from database when component mounts
+  const userId = profile?.id ?? DEMO_USER_UID;
+
+  // Load liabilities when we have a user id (profile.id after user load, or demo uid)
   useEffect(() => {
-    dispatch(fetchLiabilitiesFromDB(DEMO_USER_ID) as any);
-  }, [dispatch]);
+    dispatch(fetchLiabilitiesFromDB(userId) as any);
+  }, [dispatch, userId]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -167,7 +171,7 @@ const Liabilities: React.FC = () => {
         }) as any);
       } else {
         dispatch(addLiabilityToDB({
-          userId: DEMO_USER_ID,
+          userId,
           liabilityData: liabilityData
         }) as any);
       }

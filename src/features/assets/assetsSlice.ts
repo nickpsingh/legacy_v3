@@ -28,10 +28,17 @@ export const fetchAssetsFromDB = createAsyncThunk(
 
 export const addAssetToDB = createAsyncThunk(
   'assets/addAssetToDB',
-  async ({ userId, assetData }: { userId: string; assetData: Omit<Asset, 'id' | 'lastUpdated'> }) => {
+  async (
+    { userId, assetData }: { userId: string; assetData: Omit<Asset, 'id' | 'lastUpdated'> },
+    { rejectWithValue }
+  ) => {
     const result = await assetsService.addAsset(userId, assetData);
     if (!result.success || !result.data) {
-      throw new Error('Failed to add asset');
+      const msg =
+        typeof (result as { error?: unknown }).error === 'string'
+          ? (result as { error: string }).error
+          : 'Failed to add asset';
+      return rejectWithValue(msg);
     }
     return result.data;
   }
