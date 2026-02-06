@@ -67,9 +67,11 @@ export const addAsset = async (userId: string, assetData: Omit<Asset, 'id' | 'la
     };
 
     return { success: true, data: newAsset };
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { message?: string; details?: string; hint?: string };
+    const message = err?.message || err?.details || err?.hint || String(error);
     console.error('Error adding asset:', error);
-    return { success: false, error };
+    return { success: false, error: message };
   }
 };
 

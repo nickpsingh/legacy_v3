@@ -149,10 +149,15 @@ const Assets: React.FC = () => {
           amount: Number(formData.amount),
           description: formData.description.trim()
         };
-        await dispatch(addAssetToDB({ userId, assetData }) as any);
+        const outcome = await dispatch(addAssetToDB({ userId, assetData }) as any);
+        if (addAssetToDB.rejected.match(outcome)) {
+          const msg = (outcome.payload as string) || outcome.error?.message || 'Failed to add asset';
+          enqueueSnackbar(msg, { variant: 'error' });
+          return;
+        }
         enqueueSnackbar('Asset added successfully', { variant: 'success' });
       }
-      
+
       setShowAddDialog(false);
       setSelectedAsset(null);
       setFormData({
@@ -164,8 +169,9 @@ const Assets: React.FC = () => {
         description: ''
       });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to save asset';
       console.error('Error saving asset:', error);
-      enqueueSnackbar('Failed to save asset', { variant: 'error' });
+      enqueueSnackbar(msg, { variant: 'error' });
     } finally {
       setIsSubmitting(false);
     }

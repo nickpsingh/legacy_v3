@@ -223,14 +223,22 @@ ALTER TABLE document_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_steps ENABLE ROW LEVEL SECURITY;
 
--- Allow anon and authenticated full access (app uses anon key without login)
+-- Allow anon full access (app uses anon key without login)
+DROP POLICY IF EXISTS "Allow anon all users" ON users;
 CREATE POLICY "Allow anon all users" ON users FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon all people" ON people;
 CREATE POLICY "Allow anon all people" ON people FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon all assets" ON assets;
 CREATE POLICY "Allow anon all assets" ON assets FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon all liabilities" ON liabilities;
 CREATE POLICY "Allow anon all liabilities" ON liabilities FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon all documents" ON documents;
 CREATE POLICY "Allow anon all documents" ON documents FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon all document_submissions" ON document_submissions;
 CREATE POLICY "Allow anon all document_submissions" ON document_submissions FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon read document_templates" ON document_templates;
 CREATE POLICY "Allow anon read document_templates" ON document_templates FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anon read document_steps" ON document_steps;
 CREATE POLICY "Allow anon read document_steps" ON document_steps FOR SELECT USING (true);
 
 -- -----------------------------------------------------------------------------
@@ -277,15 +285,12 @@ SELECT 'power-of-attorney', 'Durable Power of Attorney Template', 'Durable Power
 WHERE NOT EXISTS (SELECT 1 FROM document_templates WHERE document_type = 'power-of-attorney' LIMIT 1);
 
 INSERT INTO document_steps (document_type, step_number, step_title, step_description, required_fields)
-SELECT * FROM (VALUES
-  ('will'::document_type, 0, 'Personal Information', 'Basic details about you', '["full_name", "address", "date_of_birth"]'::jsonb),
-  ('will'::document_type, 1, 'Executor Selection', 'Choose your executor', '["executor_name", "executor_address", "backup_executor_name"]'::jsonb),
-  ('will'::document_type, 2, 'Beneficiaries', 'Add your beneficiaries', '["beneficiaries"]'::jsonb),
-  ('will'::document_type, 3, 'Asset Distribution', 'Specify how assets should be distributed', '["asset_distribution"]'::jsonb),
-  ('will'::document_type, 4, 'Special Requests', 'Any special instructions', '[]'::jsonb),
-  ('will'::document_type, 5, 'Review & Submit', 'Review and finalize', '[]'::jsonb),
-  ('living-trust'::document_type, 0, 'Trust Type', 'Choose the type of trust', '["trust_type"]'::jsonb),
-  ('living-will'::document_type, 0, 'Healthcare Agent', 'Choose your healthcare agent', '["agent_name", "agent_address"]'::jsonb),
-  ('power-of-attorney'::document_type, 0, 'Agent Selection', 'Choose your attorney-in-fact', '["agent_name", "agent_address"]'::jsonb)
-) v(document_type, step_number, step_title, step_description, required_fields)
-WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1);
+SELECT 'will'::document_type, 0, 'Personal Information', 'Basic details about you', '["full_name", "address", "date_of_birth"]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1)
+UNION ALL SELECT 'will'::document_type, 1, 'Executor Selection', 'Choose your executor', '["executor_name", "executor_address", "backup_executor_name"]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1)
+UNION ALL SELECT 'will'::document_type, 2, 'Beneficiaries', 'Add your beneficiaries', '["beneficiaries"]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1)
+UNION ALL SELECT 'will'::document_type, 3, 'Asset Distribution', 'Specify how assets should be distributed', '["asset_distribution"]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1)
+UNION ALL SELECT 'will'::document_type, 4, 'Special Requests', 'Any special instructions', '[]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1)
+UNION ALL SELECT 'will'::document_type, 5, 'Review & Submit', 'Review and finalize', '[]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1)
+UNION ALL SELECT 'living-trust'::document_type, 0, 'Trust Type', 'Choose the type of trust', '["trust_type"]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1)
+UNION ALL SELECT 'living-will'::document_type, 0, 'Healthcare Agent', 'Choose your healthcare agent', '["agent_name", "agent_address"]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1)
+UNION ALL SELECT 'power-of-attorney'::document_type, 0, 'Agent Selection', 'Choose your attorney-in-fact', '["agent_name", "agent_address"]'::jsonb WHERE NOT EXISTS (SELECT 1 FROM document_steps LIMIT 1);
