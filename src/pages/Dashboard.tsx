@@ -28,14 +28,20 @@ const Dashboard: React.FC = () => {
 
   const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
 
-  // Load all data from database when component mounts
+  // Load user first so we have profile.id (internal user id) for other fetches
   useEffect(() => {
     dispatch(fetchUserFromDB(DEMO_USER_UID) as any);
-    dispatch(fetchAssetsFromDB(DEMO_USER_UID) as any);
-    dispatch(fetchLiabilitiesFromDB(DEMO_USER_UID) as any);
-    dispatch(fetchPeopleFromDB(DEMO_USER_UID) as any);
-    dispatch(fetchDocumentsFromDB(DEMO_USER_UID) as any);
   }, [dispatch]);
+
+  // Once we have the user (and thus internal id), load assets, liabilities, people, documents
+  useEffect(() => {
+    const userId = profile?.id ?? DEMO_USER_UID;
+    if (!profile) return;
+    dispatch(fetchAssetsFromDB(userId) as any);
+    dispatch(fetchLiabilitiesFromDB(userId) as any);
+    dispatch(fetchPeopleFromDB(userId) as any);
+    dispatch(fetchDocumentsFromDB(userId) as any);
+  }, [dispatch, profile?.id]);
 
   // Calculate financial summary from database data
   const totalAssets = [...assets].reduce((sum, asset) => sum + (asset.value || asset.amount || 0), 0);

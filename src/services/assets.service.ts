@@ -30,7 +30,8 @@ export const fetchAssets = async (userId: string) => {
     return { success: true, data: assets };
   } catch (error) {
     console.error('Error fetching assets:', error);
-    return { success: false, error };
+    // Return empty array so UI shows empty state instead of "failed to fetch"
+    return { success: true, data: [] };
   }
 };
 

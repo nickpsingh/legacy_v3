@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getInternalUserId } from './users.service';
 
 export interface DocumentData {
   id?: string;
@@ -39,15 +40,16 @@ export interface DocumentStep {
 }
 
 class DocumentsService {
-  // Fetch all documents for a user
+  // Fetch all documents for a user (userId can be auth uid or internal user id)
   async fetchDocuments(userId: string): Promise<DocumentData[]> {
     try {
-      console.log('🔍 DocumentsService: Fetching documents for user:', userId);
-      
+      const internalId = await getInternalUserId(userId);
+      const user_id = internalId ?? userId;
+
       const { data, error } = await supabase
         .from('documents')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', user_id)
         .order('updated_at', { ascending: false });
 
       console.log('📄 DocumentsService: Query result:', { data, error });

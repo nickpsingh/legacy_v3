@@ -42,14 +42,15 @@ const DeleteIcon = () => {
   return <Icon size={18} aria-hidden={true} />;
 };
 
+const DEMO_USER_UID = 'ec540338-923f-400d-a185-6028c5d5f823';
+
 const Assets: React.FC = () => {
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
+  const { profile } = useSelector((state: RootState) => state.user);
   const assetsState = useSelector((state: RootState) => state.assets);
   const { assets = [], loading = false, error = null } = assetsState || {};
-  
 
-  const DEMO_USER_ID = 'ec540338-923f-400d-a185-6028c5d5f823'; // John Smith's ID
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,10 +65,12 @@ const Assets: React.FC = () => {
     description: ''
   });
 
-  // Load assets from database when component mounts
+  const userId = profile?.id ?? DEMO_USER_UID;
+
+  // Load assets when we have a user id (profile.id after user load, or demo uid)
   useEffect(() => {
-    dispatch(fetchAssetsFromDB(DEMO_USER_ID) as any);
-  }, [dispatch]);
+    dispatch(fetchAssetsFromDB(userId) as any);
+  }, [dispatch, userId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -146,7 +149,7 @@ const Assets: React.FC = () => {
           amount: Number(formData.amount),
           description: formData.description.trim()
         };
-        await dispatch(addAssetToDB({ userId: DEMO_USER_ID, assetData }) as any);
+        await dispatch(addAssetToDB({ userId, assetData }) as any);
         enqueueSnackbar('Asset added successfully', { variant: 'success' });
       }
       
