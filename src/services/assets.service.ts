@@ -35,11 +35,15 @@ export const fetchAssets = async (userId: string) => {
   }
 };
 
-// Add a new asset (userId is auth uid; we resolve to internal user id)
+// Add a new asset (userId is auth uid or internal user id; we resolve to internal id)
 export const addAsset = async (userId: string, assetData: Omit<Asset, 'id' | 'lastUpdated'>) => {
   try {
     const internalId = await getInternalUserId(userId);
+    // Use resolved id, or userId (demo user seed uses same value for id and uid)
     const user_id = internalId ?? userId;
+    if (!user_id) {
+      return { success: false, error: 'User not found. Please refresh and try again.' };
+    }
 
     const { data, error } = await supabase
       .from('assets')
