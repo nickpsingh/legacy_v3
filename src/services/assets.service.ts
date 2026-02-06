@@ -1,20 +1,23 @@
 import { supabase } from '../lib/supabase';
+import { getInternalUserId } from './users.service';
 import { Asset } from '../features/user/userSlice';
 
-// Fetch all assets for a user
+// Fetch all assets for a user (userId is auth uid; we resolve to internal user id)
 export const fetchAssets = async (userId: string) => {
   try {
-    // Directly fetch assets using the user's ID (no lookup needed)
+    const internalId = await getInternalUserId(userId);
+    const user_id = internalId ?? userId;
+
     const { data, error } = await supabase
       .from('assets')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user_id)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
 
     // Convert database format to app format
-    const assets: Asset[] = data.map(asset => ({
+    const assets: Asset[] = (data || []).map(asset => ({
       id: asset.id,
       name: asset.name,
       type: asset.type,
@@ -31,13 +34,16 @@ export const fetchAssets = async (userId: string) => {
   }
 };
 
-// Add a new asset
+// Add a new asset (userId is auth uid; we resolve to internal user id)
 export const addAsset = async (userId: string, assetData: Omit<Asset, 'id' | 'lastUpdated'>) => {
   try {
+    const internalId = await getInternalUserId(userId);
+    const user_id = internalId ?? userId;
+
     const { data, error } = await supabase
       .from('assets')
       .insert({
-        user_id: userId,
+        user_id,
         name: assetData.name || '',
         type: assetData.type || 'other',
         value: assetData.value || 0,

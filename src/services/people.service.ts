@@ -1,20 +1,23 @@
 import { supabase } from '../lib/supabase';
+import { getInternalUserId } from './users.service';
 import { Person } from '../features/people/peopleSlice';
 
-// Fetch all people for a user
+// Fetch all people for a user (userId is auth uid; we resolve to internal user id)
 export const fetchPeople = async (userId: string) => {
   try {
-    // Directly fetch people using the user's ID (no lookup needed)
+    const internalId = await getInternalUserId(userId);
+    const user_id = internalId ?? userId;
+
     const { data, error } = await supabase
       .from('people')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user_id)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
 
     // Convert database format to app format
-    const people: Person[] = data.map(person => ({
+    const people: Person[] = (data || []).map(person => ({
       id: person.id,
       firstName: person.first_name,
       lastName: person.last_name,
@@ -50,12 +53,14 @@ export const fetchPeople = async (userId: string) => {
   }
 };
 
-// Add a new person
+// Add a new person (userId is auth uid; we resolve to internal user id)
 export const addPerson = async (userId: string, personData: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>) => {
   try {
-    // Prepare insert data (only fields that exist in our simplified schema)
+    const internalId = await getInternalUserId(userId);
+    const user_id = internalId ?? userId;
+
     const insertData = {
-      user_id: userId,
+      user_id,
       first_name: personData.firstName || '',
       last_name: personData.lastName || '',
       relationship: personData.relationship || '',

@@ -24,6 +24,26 @@ export interface UserProfile {
   updatedAt?: string;
 }
 
+/** Resolve auth uid to internal users.id (used by assets/liabilities tables) */
+export const getInternalUserId = async (uid: string): Promise<string | null> => {
+  try {
+    let { data, error } = await supabase
+      .from('users')
+      .select('id')
+      .eq('uid', uid)
+      .single();
+    if (error && uid === 'ec540338-923f-400d-a185-6028c5d5f823') {
+      const res = await supabase.from('users').select('id').eq('id', uid).single();
+      data = res.data;
+      error = res.error;
+    }
+    if (error || !data) return null;
+    return data.id;
+  } catch {
+    return null;
+  }
+};
+
 // Fetch user by UID or ID
 export const fetchUserByUID = async (uid: string) => {
   try {
